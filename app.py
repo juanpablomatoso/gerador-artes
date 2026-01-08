@@ -6,15 +6,31 @@ import textwrap
 import io
 import os
 
-# Configuração da página - Tema escuro/claro automático do Streamlit
-st.set_page_config(page_title="Central Destaque Toledo", page_icon="🚀", layout="wide")
+# Configuração da página para um visual mais moderno
+st.set_page_config(page_title="Central Destaque Toledo", page_icon="📸", layout="wide")
 
-# Estilização Personalizada (CSS)
+# CSS para deixar os botões de notícias bonitos e organizados
 st.markdown("""
     <style>
-    .stButton>button { width: 100%; border-radius: 10px; height: 3em; font-weight: bold; }
-    .main { background-color: #f5f7f9; }
-    .sidebar .sidebar-content { background-image: linear-gradient(#2e7bcf,#2e7bcf); color: white; }
+    [data-testid="stSidebar"] { min-width: 400px; max-width: 400px; }
+    .noticia-card {
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 10px;
+        background-color: white;
+        transition: 0.3s;
+    }
+    .noticia-card:hover { border-color: #2e7bcf; background-color: #f0f7ff; }
+    div.stButton > button {
+        height: auto !important;
+        padding: 10px !important;
+        border: 1px solid #ddd !important;
+        background-color: white !important;
+        color: #333 !important;
+        text-align: left !important;
+        display: block !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -24,28 +40,36 @@ TEMPLATE_FEED = "template_feed.png"
 TEMPLATE_STORIE = "template_storie.png"
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-# --- FUNÇÃO DE SCRAPING MELHORADA ---
-@st.cache_data(ttl=600) # Guarda a lista por 10 min para ficar instantâneo
-def obter_lista_noticias():
+# --- FUNÇÃO DE SCRAPING COM IMAGENS ---
+@st.cache_data(ttl=300)
+def obter_lista_noticias_com_capa():
     try:
         url_site = "https://www.destaquetoledo.com.br/"
         res = requests.get(url_site, headers=HEADERS, timeout=10).text
         soup = BeautifulSoup(res, "html.parser")
         noticias = []
         
-        for a in soup.find_all("a", href=True):
-            href = a['href']
-            if ".html" in href and "/20" in href and href not in [n['url'] for n in noticias]:
-                titulo_limpo = a.get_text(strip=True)
-                if len(titulo_limpo) > 20:
-                    noticias.append({"titulo": titulo_limpo, "url": href})
-        return noticias[:12]
+        # O site geralmente organiza notícias em blocos. Vamos buscar os artigos.
+        itens = soup.find_all("div", class_="post-item") or soup.find_all("article")
+        
+        for item in itens:
+            link_tag = item.find("a", href=True)
+            img_tag = item.find("img")
+            
+            if link_tag and ".html" in link_tag['href']:
+                url = link_tag['href']
+                titulo = link_tag.get_text(strip=True) or item.find("h2").get_text(strip=True)
+                img_url = img_tag.get("src") or img_tag.get("data-src") if img_tag else None
+                
+                if url not in [n['url'] for n in noticias] and len(titulo) > 15:
+                    noticias.append({"titulo": titulo, "url": url, "img": img_url})
+        
+        return noticias[:10]
     except:
         return []
 
 def processar_artes_web(url, tipo_saida):
-    # (Mantive sua lógica exata de processamento de imagem aqui)
-    # [A lógica do seu post anterior entra aqui sem alterações nos cálculos]
+    # [Mantida sua lógica exata de processamento original de imagem e texto]
     try:
         res_m = requests.get(url, headers=HEADERS).text
         soup_m = BeautifulSoup(res_m, "html.parser")
@@ -135,52 +159,53 @@ def processar_artes_web(url, tipo_saida):
         st.error(f"Erro: {e}")
         return None, None
 
-# --- ESTRUTURA DA PÁGINA ---
-
-# Barra Lateral (Sidebar) para as notícias
+# --- CONSTRUÇÃO DA INTERFACE ---
 with st.sidebar:
-    st.image("https://www.destaquetoledo.com.br/images/logo.png", width=200) # Logo do site
-    st.title("📰 Últimas Notícias")
-    if st.button("🔄 Sincronizar Agora"):
+    st.header("🌐 Últimas Notícias")
+    if st.button("🔄 Atualizar Portal"):
         st.cache_data.clear()
         st.rerun()
     
-    st.divider()
-    lista = obter_lista_noticias()
+    lista = obter_lista_noticias_com_capa()
+    
     for item in lista:
-        if st.button(item['titulo'], key=item['url']):
-            st.session_state.url_ativa = item['url']
+        # Layout de Card com Foto e Texto
+        with st.container():
+            col_img, col_txt = st.columns([1, 2])
+            if item['img']:
+                col_img.image(item['img'], use_container_width=True)
+            
+            # Botão invisível sobre o card ou botão de texto limpo
+            if col_txt.button(item['titulo'], key=item['url'], use_container_width=True):
+                st.session_state.url_ativa = item['url']
+        st.divider()
 
-# Área Principal
-st.header("🎨 Central de Criação Destaque")
+# Área Central
+st.title("🎨 Central de Criação Destaque")
 
 if 'url_ativa' not in st.session_state:
-    st.info("👈 Selecione uma notícia na barra lateral para começar!")
+    st.info("👈 Selecione uma notícia ao lado para gerar as artes!")
 else:
     url_final = st.session_state.url_ativa
-    st.caption(f"📍 Link ativo: {url_final}")
     
-    col_f, col_s = st.columns(2)
+    c1, c2 = st.columns(2)
     
-    with col_f:
-        st.subheader("🖼️ Post para Feed")
-        if st.button("Gerar Versão Quadrada"):
-            with st.spinner("Desenhando arte..."):
-                img, tit = processar_artes_web(url_final, "FEED")
-                if img:
-                    st.image(img, use_container_width=True)
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG", quality=95)
-                    st.download_button(f"📥 Baixar Post Feed", buf.getvalue(), f"feed_{tit[:20]}.jpg", "image/jpeg")
+    with c1:
+        st.subheader("🖼️ Post Feed (1000x1000)")
+        if st.button("✨ Gerar Feed"):
+            img, tit = processar_artes_web(url_final, "FEED")
+            if img:
+                st.image(img, use_container_width=True)
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=95)
+                st.download_button("📥 Baixar Feed", buf.getvalue(), f"feed_{tit[:15]}.jpg", "image/jpeg")
 
-    with col_s:
-        st.subheader("📱 Post para Stories")
-        if st.button("Gerar Versão Story"):
-            with st.spinner("Desenhando arte..."):
-                img, tit = processar_artes_web(url_final, "STORY")
-                if img:
-                    # No Story, mostramos um pouco menor na prévia para não ocupar a tela toda
-                    st.image(img, width=320)
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG", quality=95)
-                    st.download_button(f"📥 Baixar Story", buf.getvalue(), f"story_{tit[:20]}.jpg", "image/jpeg")
+    with c2:
+        st.subheader("📱 Post Story (1080x1920)")
+        if st.button("✨ Gerar Story"):
+            img, tit = processar_artes_web(url_final, "STORY")
+            if img:
+                st.image(img, width=300)
+                buf = io.BytesIO()
+                img.save(buf, format="JPEG", quality=95)
+                st.download_button("📥 Baixar Story", buf.getvalue(), f"story_{tit[:15]}.jpg", "image/jpeg")

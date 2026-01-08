@@ -7,182 +7,162 @@ import io
 import os
 
 # Configuração da página
-st.set_page_config(page_title="Central Destaque Toledo", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Gerador Destaque Toledo", layout="wide")
 
-# CSS para estabilizar o visual e as fontes
-st.markdown("""
-    <style>
-    [data-testid="stSidebar"] { min-width: 400px; max-width: 450px; }
-    .stButton > button { width: 100%; text-align: left !important; height: auto !important; padding: 10px !important; }
-    </style>
-    """, unsafe_allow_html=True)
+# --- CONFIGURAÇÕES DE CAMINHOS ---
+CAMINHO_FONTE = "Shoika Bold.ttf"
+TEMPLATE_FEED = "template_feed.png"
+TEMPLATE_STORIE = "template_storie.png"
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-# --- CONFIGURAÇÕES BASE ---
-# Usando os caminhos que você já configurou no seu computador
-URL_SITE = "https://www.destaquetoledo.com.br/"
-CAMINHO_FONTE = r"C:\Users\juanm\OneDrive\Área de Trabalho\Artes Insta\Shoika Bold.ttf"
-TEMPLATE_FEED = r"C:\Users\juanm\OneDrive\Área de Trabalho\Artes Insta\template_feed.png"
-TEMPLATE_STORIE = r"C:\Users\juanm\OneDrive\Área de Trabalho\Artes Insta\template_storie.png"
-HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"}
-
-# --- FUNÇÕES DE BUSCA ---
-@st.cache_data(ttl=60) # Atualiza automaticamente a cada 1 minuto
-def buscar_noticias_portal():
+# --- FUNÇÃO PARA PUXAR A LISTA AUTOMÁTICA ---
+def obter_lista_noticias():
     try:
-        res = requests.get(URL_SITE, headers=HEADERS, timeout=15).text
+        url_site = "https://www.destaquetoledo.com.br/"
+        res = requests.get(url_site, headers=HEADERS, timeout=10).text
         soup = BeautifulSoup(res, "html.parser")
-        dados = []
+        noticias = []
         
-        # Procura por todos os blocos de notícias possíveis
-        for item in soup.find_all(['div', 'article'], class_=['post-item', 'post-column', 'item']):
-            link_tag = item.find("a", href=True)
-            if not link_tag or ".html" not in link_tag['href']: continue
-            
-            url = link_tag['href']
-            if not url.startswith('http'): url = URL_SITE + url.lstrip('/')
-            
-            # Título
-            titulo = link_tag.get_text(strip=True)
-            if len(titulo) < 10:
-                h = item.find(['h2', 'h3'])
-                if h: titulo = h.get_text(strip=True)
-            
-            # Imagem (Tenta vários atributos comuns)
-            img_tag = item.find("img")
-            img_url = None
-            if img_tag:
-                img_url = img_tag.get("src") or img_tag.get("data-src") or img_tag.get("data-lazy-src")
-                if img_url and not img_url.startswith('http'): img_url = URL_SITE + img_url.lstrip('/')
-
-            if url not in [d['url'] for d in dados] and titulo:
-                dados.append({"titulo": titulo, "url": url, "img": img_url})
+        # Busca links que contenham datas no formato do site (/2024/ ou /2025/)
+        for a in soup.find_all("a", href=True):
+            href = a['href']
+            # Filtra apenas links de notícias e evita duplicados
+            if ".html" in href and "/20" in href and href not in [n['url'] for n in noticias]:
+                titulo_limpo = a.get_text(strip=True)
+                if len(titulo_limpo) > 10: # Evita links vazios ou ícones
+                    noticias.append({"titulo": titulo_limpo, "url": href})
         
-        return dados[:12]
-    except:
+        return noticias[:10] # Retorna as 10 mais recentes
+    except Exception as e:
+        st.error(f"Erro ao buscar lista: {e}")
         return []
 
-def gerar_arte(url, tipo):
+# --- SUA LÓGICA ORIGINAL DE PROCESSAMENTO ---
+def processar_artes_web(url, tipo_saida):
     try:
-        res_m = requests.get(url, headers=HEADERS, timeout=15).text
+        res_m = requests.get(url, headers=HEADERS).text
         soup_m = BeautifulSoup(res_m, "html.parser")
-        
         titulo = soup_m.find("h1").get_text(strip=True)
         corpo = soup_m.find(class_="post-body") or soup_m
-        # Pega a primeira imagem que não seja logo
         img_url = next(img.get("src") for img in corpo.find_all("img") if "logo" not in img.get("src").lower())
-        if not img_url.startswith('http'): img_url = URL_SITE + img_url.lstrip('/')
         
         img_res = requests.get(img_url, headers=HEADERS)
-        img_raw = Image.open(io.BytesIO(img_res.content)).convert("RGBA")
-        larg, alt = img_raw.size
-        prop = larg / alt
+        img_original = Image.open(io.BytesIO(img_res.content)).convert("RGBA")
+        larg_o, alt_o = img_original.size
+        prop_o = larg_o / alt_o
 
-        if tipo == "FEED":
-            # Lógica de redimensionamento do Feed
-            TAM = 1000
-            if prop > 1.0:
-                n_alt = TAM
-                n_larg = int(TAM * prop)
-                img_redim = img_raw.resize((n_larg, n_alt), Image.LANCZOS)
-                img_final = img_redim.crop(((n_larg - TAM)//2, 0, (n_larg - TAM)//2 + TAM, TAM))
+        if tipo_saida == "FEED":
+            TAMANHO_FEED = 1000
+            if prop_o > 1.0:
+                n_alt = TAMANHO_FEED
+                n_larg = int(n_alt * prop_o)
+                img_f_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS)
+                margem = (n_larg - TAMANHO_FEED) // 2
+                fundo_f = img_f_redim.crop((margem, 0, margem + TAMANHO_FEED, TAMANHO_FEED))
             else:
-                n_larg = TAM
-                n_alt = int(TAM / prop)
-                img_redim = img_raw.resize((n_larg, n_alt), Image.LANCZOS)
-                img_final = img_redim.crop((0, (n_alt - TAM)//2, TAM, (n_alt - TAM)//2 + TAM))
-            
+                n_larg = TAMANHO_FEED
+                n_alt = int(n_larg / prop_o)
+                img_f_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS)
+                margem = (n_alt - TAMANHO_FEED) // 2
+                fundo_f = img_f_redim.crop((0, margem, TAMANHO_FEED, margem + TAMANHO_FEED))
+
             if os.path.exists(TEMPLATE_FEED):
-                tmp = Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAM, TAM))
-                img_final.alpha_composite(tmp)
-            
-            draw = ImageDraw.Draw(img_final)
+                tmp_f = Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAMANHO_FEED, TAMANHO_FEED))
+                fundo_f.alpha_composite(tmp_f)
+
+            draw_f = ImageDraw.Draw(fundo_f)
             tam_f = 85
             while tam_f > 20:
-                fnt = ImageFont.truetype(CAMINHO_FONTE, tam_f)
-                lns = textwrap.wrap(titulo, width=int(662/(fnt.getlength("W")*0.55)))
-                if (len(lns)*tam_f) <= 165 and len(lns) <= 3: break
+                fonte_f = ImageFont.truetype(CAMINHO_FONTE, tam_f)
+                limite_f = int(662 / (fonte_f.getlength("W") * 0.55))
+                linhas_f = textwrap.wrap(titulo, width=max(10, limite_f))
+                alt_bloco_f = (len(linhas_f) * tam_f) + ((len(linhas_f)-1) * 4)
+                if alt_bloco_f <= 165 and len(linhas_f) <= 3: break
                 tam_f -= 1
             
-            y = 811 - ((len(lns)*tam_f)//2)
-            for l in lns:
-                draw.text((488 - (draw.textbbox((0,0), l, font=fnt)[2]//2), y), l, fill="black", font=fnt)
-                y += tam_f + 4
-            return img_final.convert("RGB"), titulo
+            y_f = 811 - (alt_bloco_f // 2)
+            for lin in linhas_f:
+                larg_l = draw_f.textbbox((0, 0), lin, font=fonte_f)[2]
+                draw_f.text((488 - (larg_l // 2), y_f), lin, fill="black", font=fonte_f)
+                y_f += tam_f + 4
+            return fundo_f.convert("RGB")
 
         else: # STORY
-            # Lógica de redimensionamento do Story
-            L_S, A_S = 940, 541
-            ratio = L_S / A_S
-            ns_l, ns_a = (int(A_S * prop), A_S) if prop > ratio else (L_S, int(L_S / prop))
-            img_redim = img_raw.resize((ns_l, ns_a), Image.LANCZOS)
-            img_story = img_redim.crop(((ns_l - L_S)//2, (ns_a - A_S)//2, (ns_l - L_S)//2 + L_S, (ns_a - A_S)//2 + A_S))
+            LARG_STORY, ALT_STORY = 940, 541
+            ratio_a = LARG_STORY / ALT_STORY
+            if prop_o > ratio_a:
+                ns_alt = ALT_STORY
+                ns_larg = int(ns_alt * prop_o)
+            else:
+                ns_larg = LARG_STORY
+                ns_alt = int(ns_larg / prop_o)
             
-            canvas = Image.new("RGBA", (1080, 1920), (0,0,0,0))
-            canvas.paste(img_story, (69, 504))
+            img_s_redim = img_original.resize((ns_larg, ns_alt), Image.LANCZOS)
+            l_cut = (ns_larg - LARG_STORY) / 2
+            t_cut = (ns_alt - ALT_STORY) / 2
+            img_s_final = img_s_redim.crop((l_cut, t_cut, l_cut + LARG_STORY, t_cut + ALT_STORY))
+
+            storie_canvas = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
+            storie_canvas.paste(img_s_final, (69, 504))
+            
             if os.path.exists(TEMPLATE_STORIE):
-                tmp = Image.open(TEMPLATE_STORIE).convert("RGBA").resize((1080, 1920))
-                canvas.alpha_composite(tmp)
-            
-            draw = ImageDraw.Draw(canvas)
+                tmp_s = Image.open(TEMPLATE_STORIE).convert("RGBA").resize((1080, 1920))
+                storie_canvas.alpha_composite(tmp_s)
+
+            draw_s = ImageDraw.Draw(storie_canvas)
             tam_s = 60
             while tam_s > 20:
-                fnt = ImageFont.truetype(CAMINHO_FONTE, tam_s)
-                lns = textwrap.wrap(titulo, width=int(912/(fnt.getlength("W")*0.55)))
-                if (len(lns)*tam_s) <= 300 and len(lns) <= 4: break
+                fonte_s = ImageFont.truetype(CAMINHO_FONTE, tam_s)
+                limite_s = int(912 / (fonte_s.getlength("W") * 0.55))
+                linhas_s = textwrap.wrap(titulo, width=max(10, limite_s))
+                alt_bloco_s = (len(linhas_s) * tam_s) + (len(linhas_s) * 10)
+                if alt_bloco_s <= 300 and len(linhas_s) <= 4: break
                 tam_s -= 2
-            
-            y = 1079
-            for l in lns:
-                draw.text((69, y), l, fill="white", font=fnt)
-                y += tam_s + 12
-            return canvas.convert("RGB"), titulo
+                
+            y_s = 1079
+            for lin in linhas_s:
+                draw_s.text((69, y_s), lin, fill="white", font=fonte_s)
+                y_s += tam_s + 12
+            return storie_canvas.convert("RGB")
 
     except Exception as e:
-        st.error(f"Erro no processamento: {e}")
-        return None, None
+        st.error(f"Erro ao processar: {e}")
+        return None
 
 # --- INTERFACE ---
-with st.sidebar:
-    st.title("🌐 Últimas Notícias")
-    if st.button("🔄 Atualizar Tudo"):
-        st.cache_data.clear()
+st.title("🚀 Painel Destaque Toledo")
+
+col_lista, col_preview = st.columns([1, 1.5])
+
+with col_lista:
+    st.subheader("📰 Últimas do Site")
+    if st.button("🔄 Atualizar Lista"):
         st.rerun()
     
-    noticias = buscar_noticias_portal()
-    if not noticias:
-        st.error("Site fora do ar ou estrutura alterada.")
+    lista = obter_lista_noticias()
+    for item in lista:
+        if st.button(item['titulo'], key=item['url'], use_container_width=True):
+            st.session_state.url_ativa = item['url']
+
+with col_preview:
+    url_final = st.text_input("Link selecionado:", value=st.session_state.get('url_ativa', ''))
     
-    for n in noticias:
-        col_i, col_t = st.columns([0.3, 0.7])
-        if n['img']: col_i.image(n['img'], use_container_width=True)
-        else: col_i.write("🖼️")
-        if col_t.button(n['titulo'][:60] + "...", key=n['url']):
-            st.session_state.url_ativa = n['url']
-        st.divider()
-
-st.title("🎨 Central de Criação Destaque")
-
-if 'url_ativa' not in st.session_state:
-    st.info("👈 Selecione uma notícia ao lado para começar!")
-else:
-    u = st.session_state.url_ativa
-    st.caption(f"📍 Matéria: {u}")
-    
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("✨ Gerar Feed"):
-            res, tit = gerar_arte(u, "FEED")
-            if res:
-                st.image(res)
-                buf = io.BytesIO()
-                res.save(buf, format="JPEG")
-                st.download_button("📥 Baixar Feed", buf.getvalue(), f"feed_{tit[:20]}.jpg")
-
-    with c2:
-        if st.button("✨ Gerar Story"):
-            res, tit = gerar_arte(u, "STORY")
-            if res:
-                st.image(res, width=300)
-                buf = io.BytesIO()
-                res.save(buf, format="JPEG")
-                st.download_button("📥 Baixar Story", buf.getvalue(), f"story_{tit[:20]}.jpg")
+    if url_final:
+        st.subheader("🎨 Gerar Artes")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🖼️ Gerar Feed"):
+                img = processar_artes_web(url_final, "FEED")
+                if img:
+                    st.image(img)
+                    buf = io.BytesIO()
+                    img.save(buf, format="JPEG")
+                    st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg", "image/jpeg")
+        with c2:
+            if st.button("📱 Gerar Story"):
+                img = processar_artes_web(url_final, "STORY")
+                if img:
+                    st.image(img, width=250)
+                    buf = io.BytesIO()
+                    img.save(buf, format="JPEG")
+                    st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg", "image/jpeg")

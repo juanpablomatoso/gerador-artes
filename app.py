@@ -6,8 +6,18 @@ import textwrap
 import io
 import os
 
-# Configuração da página
-st.set_page_config(page_title="Gerador Destaque Toledo", layout="wide")
+# Configuração da página para um visual profissional
+st.set_page_config(page_title="Painel de Artes - Destaque Toledo", layout="wide", page_icon="🎨")
+
+# --- ESTILIZAÇÃO CUSTOMIZADA ---
+st.markdown("""
+    <style>
+    .main { background-color: #f5f7f9; }
+    .stButton>button { width: 100%; border-radius: 5px; height: 3em; background-color: #ffffff; border: 1px solid #d1d5db; }
+    .stButton>button:hover { border-color: #2e7bcf; color: #2e7bcf; }
+    .instrucoes { background-color: #e1f5fe; padding: 20px; border-radius: 10px; border-left: 5px solid #0288d1; margin-bottom: 20px; }
+    </style>
+    """, unsafe_allow_html=True)
 
 # --- CONFIGURAÇÕES DE CAMINHOS ---
 CAMINHO_FONTE = "Shoika Bold.ttf"
@@ -15,29 +25,24 @@ TEMPLATE_FEED = "template_feed.png"
 TEMPLATE_STORIE = "template_storie.png"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-# --- FUNÇÃO PARA PUXAR A LISTA AUTOMÁTICA ---
+# --- FUNÇÕES CORE ---
 def obter_lista_noticias():
     try:
         url_site = "https://www.destaquetoledo.com.br/"
         res = requests.get(url_site, headers=HEADERS, timeout=10).text
         soup = BeautifulSoup(res, "html.parser")
         noticias = []
-        
-        # Busca links que contenham datas no formato do site (/2024/ ou /2025/)
         for a in soup.find_all("a", href=True):
             href = a['href']
-            # Filtra apenas links de notícias e evita duplicados
             if ".html" in href and "/20" in href and href not in [n['url'] for n in noticias]:
                 titulo_limpo = a.get_text(strip=True)
-                if len(titulo_limpo) > 10: # Evita links vazios ou ícones
+                if len(titulo_limpo) > 15:
                     noticias.append({"titulo": titulo_limpo, "url": href})
-        
-        return noticias[:10] # Retorna as 10 mais recentes
+        return noticias[:12]
     except Exception as e:
-        st.error(f"Erro ao buscar lista: {e}")
+        st.error(f"Erro ao conectar com o site: {e}")
         return []
 
-# --- SUA LÓGICA ORIGINAL DE PROCESSAMENTO ---
 def processar_artes_web(url, tipo_saida):
     try:
         res_m = requests.get(url, headers=HEADERS).text
@@ -52,117 +57,119 @@ def processar_artes_web(url, tipo_saida):
         prop_o = larg_o / alt_o
 
         if tipo_saida == "FEED":
-            TAMANHO_FEED = 1000
+            TAM = 1000
+            # Lógica de redimensionamento centralizado
             if prop_o > 1.0:
-                n_alt = TAMANHO_FEED
-                n_larg = int(n_alt * prop_o)
-                img_f_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS)
-                margem = (n_larg - TAMANHO_FEED) // 2
-                fundo_f = img_f_redim.crop((margem, 0, margem + TAMANHO_FEED, TAMANHO_FEED))
+                n_alt = TAM
+                n_larg = int(TAM * prop_o)
+                img_f = img_original.resize((n_larg, n_alt), Image.LANCZOS).crop(((n_larg-TAM)//2, 0, (n_larg-TAM)//2+TAM, TAM))
             else:
-                n_larg = TAMANHO_FEED
-                n_alt = int(n_larg / prop_o)
-                img_f_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS)
-                margem = (n_alt - TAMANHO_FEED) // 2
-                fundo_f = img_f_redim.crop((0, margem, TAMANHO_FEED, margem + TAMANHO_FEED))
-
-            if os.path.exists(TEMPLATE_FEED):
-                tmp_f = Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAMANHO_FEED, TAMANHO_FEED))
-                fundo_f.alpha_composite(tmp_f)
-
-            draw_f = ImageDraw.Draw(fundo_f)
-            tam_f = 85
-            while tam_f > 20:
-                fonte_f = ImageFont.truetype(CAMINHO_FONTE, tam_f)
-                limite_f = int(662 / (fonte_f.getlength("W") * 0.55))
-                linhas_f = textwrap.wrap(titulo, width=max(10, limite_f))
-                alt_bloco_f = (len(linhas_f) * tam_f) + ((len(linhas_f)-1) * 4)
-                if alt_bloco_f <= 165 and len(linhas_f) <= 3: break
-                tam_f -= 1
+                n_larg = TAM
+                n_alt = int(TAM / prop_o)
+                img_f = img_original.resize((n_larg, n_alt), Image.LANCZOS).crop((0, (n_alt-TAM)//2, TAM, (n_alt-TAM)//2+TAM))
             
-            y_f = 811 - (alt_bloco_f // 2)
-            for lin in linhas_f:
-                larg_l = draw_f.textbbox((0, 0), lin, font=fonte_f)[2]
-                draw_f.text((488 - (larg_l // 2), y_f), lin, fill="black", font=fonte_f)
-                y_f += tam_f + 4
-            return fundo_f.convert("RGB")
+            if os.path.exists(TEMPLATE_FEED):
+                img_f.alpha_composite(Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAM, TAM)))
+            
+            draw = ImageDraw.Draw(img_f)
+            tam = 85
+            while tam > 20:
+                fnt = ImageFont.truetype(CAMINHO_FONTE, tam)
+                lns = textwrap.wrap(titulo, width=int(662/(fnt.getlength("W")*0.55)))
+                if (len(lns)*tam) <= 165 and len(lns) <= 3: break
+                tam -= 1
+            y = 811 - ((len(lns)*tam)//2)
+            for l in lns:
+                draw.text((488 - (draw.textbbox((0,0), l, font=fnt)[2]//2), y), l, fill="black", font=fnt)
+                y += tam + 4
+            return img_f.convert("RGB"), titulo
 
         else: # STORY
-            LARG_STORY, ALT_STORY = 940, 541
-            ratio_a = LARG_STORY / ALT_STORY
-            if prop_o > ratio_a:
-                ns_alt = ALT_STORY
-                ns_larg = int(ns_alt * prop_o)
-            else:
-                ns_larg = LARG_STORY
-                ns_alt = int(ns_larg / prop_o)
+            L_S, A_S = 940, 541
+            ratio = L_S / A_S
+            ns_l, ns_a = (int(A_S*prop_o), A_S) if prop_o > ratio else (L_S, int(L_S/prop_o))
+            img_s = img_original.resize((ns_l, ns_a), Image.LANCZOS).crop(((ns_l-L_S)//2, (ns_a-A_S)//2, (ns_l-L_S)//2+L_S, (ns_a-A_S)//2+A_S))
             
-            img_s_redim = img_original.resize((ns_larg, ns_alt), Image.LANCZOS)
-            l_cut = (ns_larg - LARG_STORY) / 2
-            t_cut = (ns_alt - ALT_STORY) / 2
-            img_s_final = img_s_redim.crop((l_cut, t_cut, l_cut + LARG_STORY, t_cut + ALT_STORY))
-
-            storie_canvas = Image.new("RGBA", (1080, 1920), (0, 0, 0, 0))
-            storie_canvas.paste(img_s_final, (69, 504))
-            
+            canvas = Image.new("RGBA", (1080, 1920), (0,0,0,0))
+            canvas.paste(img_s, (69, 504))
             if os.path.exists(TEMPLATE_STORIE):
-                tmp_s = Image.open(TEMPLATE_STORIE).convert("RGBA").resize((1080, 1920))
-                storie_canvas.alpha_composite(tmp_s)
-
-            draw_s = ImageDraw.Draw(storie_canvas)
-            tam_s = 60
-            while tam_s > 20:
-                fonte_s = ImageFont.truetype(CAMINHO_FONTE, tam_s)
-                limite_s = int(912 / (fonte_s.getlength("W") * 0.55))
-                linhas_s = textwrap.wrap(titulo, width=max(10, limite_s))
-                alt_bloco_s = (len(linhas_s) * tam_s) + (len(linhas_s) * 10)
-                if alt_bloco_s <= 300 and len(linhas_s) <= 4: break
-                tam_s -= 2
-                
-            y_s = 1079
-            for lin in linhas_s:
-                draw_s.text((69, y_s), lin, fill="white", font=fonte_s)
-                y_s += tam_s + 12
-            return storie_canvas.convert("RGB")
+                canvas.alpha_composite(Image.open(TEMPLATE_STORIE).convert("RGBA").resize((1080, 1920)))
+            
+            draw = ImageDraw.Draw(canvas)
+            tam = 60
+            while tam > 20:
+                fnt = ImageFont.truetype(CAMINHO_FONTE, tam)
+                lns = textwrap.wrap(titulo, width=int(912/(fnt.getlength("W")*0.55)))
+                if (len(lns)*tam) <= 300 and len(lns) <= 4: break
+                tam -= 2
+            y = 1079
+            for l in lns:
+                draw.text((69, y), l, fill="white", font=fnt)
+                y += tam + 12
+            return canvas.convert("RGB"), titulo
 
     except Exception as e:
-        st.error(f"Erro ao processar: {e}")
-        return None
+        st.error(f"Erro ao processar imagem da notícia: {e}")
+        return None, None
 
-# --- INTERFACE ---
-st.title("🚀 Painel Destaque Toledo")
+# --- INTERFACE PRINCIPAL ---
+st.title("📸 Central de Produção - Destaque Toledo")
 
-col_lista, col_preview = st.columns([1, 1.5])
+# Manual para Funcionários
+with st.expander("📖 MANUAL DE USO (Clique para abrir/fechar)", expanded=False):
+    st.markdown("""
+    ### 🛠 Como trabalhar com o Painel:
+    1. **Atualizar Lista:** Clique no botão azul à esquerda para buscar as notícias mais recentes do site.
+    2. **Selecionar Notícia:** Clique no título da notícia que deseja transformar em arte. O link aparecerá no campo central.
+    3. **Gerar Artes:** - Clique em **🖼️ Gerar Feed** para artes quadradas (Instagram/Facebook).
+        - Clique em **📱 Gerar Story** para artes verticais (Stories/WhatsApp).
+    4. **Baixar:** Após a imagem aparecer, clique no botão **📥 Baixar** logo abaixo dela.
+    ---
+    *Dica: Se o título ficar muito grande, o sistema diminuirá a fonte automaticamente para caber no molde.*
+    """)
+
+col_lista, col_trabalho = st.columns([1, 1.8])
 
 with col_lista:
-    st.subheader("📰 Últimas do Site")
-    if st.button("🔄 Atualizar Lista"):
-        st.rerun()
+    st.subheader("📰 Notícias no Site")
+    if st.button("🔄 Sincronizar com o Site"):
+        with st.spinner("Buscando novidades..."):
+            st.rerun()
     
     lista = obter_lista_noticias()
+    if not lista:
+        st.warning("Nenhuma notícia encontrada. Verifique sua conexão.")
     for item in lista:
-        if st.button(item['titulo'], key=item['url'], use_container_width=True):
+        if st.button(item['titulo'], key=item['url']):
             st.session_state.url_ativa = item['url']
 
-with col_preview:
-    url_final = st.text_input("Link selecionado:", value=st.session_state.get('url_ativa', ''))
+with col_trabalho:
+    url_ativa = st.text_input("🔗 Link da Notícia Ativa:", value=st.session_state.get('url_ativa', ''), help="Este é o link que será usado para gerar a arte.")
     
-    if url_final:
-        st.subheader("🎨 Gerar Artes")
+    if url_ativa:
+        st.divider()
         c1, c2 = st.columns(2)
+        
         with c1:
-            if st.button("🖼️ Gerar Feed"):
-                img = processar_artes_web(url_final, "FEED")
-                if img:
-                    st.image(img)
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG")
-                    st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg", "image/jpeg")
+            if st.button("🖼️ Gerar Versão FEED"):
+                with st.spinner("Desenhando arte..."):
+                    img, tit = processar_artes_web(url_ativa, "FEED")
+                    if img:
+                        st.image(img, use_container_width=True)
+                        buf = io.BytesIO()
+                        img.save(buf, format="JPEG", quality=95)
+                        st.download_button(f"📥 Baixar Post Feed", buf.getvalue(), f"FEED_{tit[:15]}.jpg", "image/jpeg")
+                        st.success("✅ Feed gerado!")
+
         with c2:
-            if st.button("📱 Gerar Story"):
-                img = processar_artes_web(url_final, "STORY")
-                if img:
-                    st.image(img, width=250)
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG")
-                    st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg", "image/jpeg")
+            if st.button("📱 Gerar Versão STORY"):
+                with st.spinner("Desenhando arte..."):
+                    img, tit = processar_artes_web(url_ativa, "STORY")
+                    if img:
+                        st.image(img, width=280)
+                        buf = io.BytesIO()
+                        img.save(buf, format="JPEG", quality=95)
+                        st.download_button(f"📥 Baixar Post Story", buf.getvalue(), f"STORY_{tit[:15]}.jpg", "image/jpeg")
+                        st.success("✅ Story gerado!")
+    else:
+        st.info("👈 Selecione uma notícia na lista ao lado para começar o trabalho.")

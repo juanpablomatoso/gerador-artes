@@ -9,62 +9,73 @@ import os
 # Configuração da página
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="📸")
 
-# --- ESTILIZAÇÃO CSS AVANÇADA ---
+# --- ESTILIZAÇÃO CSS PROFISSIONAL ---
 st.markdown("""
     <style>
-    /* Fundo e Fonte Geral */
-    .main { background-color: #f8f9fa; }
+    /* Fundo geral */
+    .main { background-color: #f4f7f9; }
     
-    /* Botões da Lista de Notícias (Alinhados à Esquerda) */
+    /* Título do Topo Estilizado */
+    .topo-titulo {
+        text-align: center;
+        padding: 30px;
+        background: linear-gradient(90deg, #004a99 0%, #007bff 100%);
+        color: white;
+        border-radius: 0 0 20px 20px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .topo-titulo h1 { margin: 0; font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
+    .topo-titulo p { margin: 5px 0 0 0; opacity: 0.8; font-size: 1.1rem; }
+
+    /* Botões da Lista (Alinhados à Esquerda) */
     .stButton>button {
         width: 100%;
         text-align: left !important;
-        border-radius: 8px !important;
-        border: 1px solid #e0e0e0 !important;
+        border-radius: 10px !important;
+        border: 1px solid #dce1e6 !important;
         background-color: white !important;
-        padding: 12px !important;
-        color: #333 !important;
+        padding: 15px !important;
+        color: #2c3e50 !important;
         font-weight: 500 !important;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
         line-height: 1.4;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
     .stButton>button:hover {
         border-color: #007bff !important;
-        background-color: #f0f7ff !important;
-        transform: translateX(5px);
+        background-color: #f8fbff !important;
+        transform: scale(1.01);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
     }
 
-    /* Cores dos Botões de Ação Principal */
+    /* Cores dos Botões de Gerar Arte */
+    /* Coluna 1: FEED (Azul) */
     div[data-testid="stColumn"]:nth-of-type(1) button {
-        background-color: #007bff !important; /* Azul Feed */
+        background: #007bff !important;
         color: white !important;
-        font-weight: bold !important;
         text-align: center !important;
+        font-weight: bold !important;
+        height: 60px !important;
+        border: none !important;
     }
+    /* Coluna 2: STORY (Roxo) */
     div[data-testid="stColumn"]:nth-of-type(2) button {
-        background-color: #6f42c1 !important; /* Roxo Story */
+        background: #6f42c1 !important;
         color: white !important;
-        font-weight: bold !important;
         text-align: center !important;
+        font-weight: bold !important;
+        height: 60px !important;
+        border: none !important;
     }
 
-    /* Container do Manual */
-    .instrucoes {
-        background-color: white;
+    /* Ajuste de Cards de Instrução */
+    .instrucao-card {
+        background: white;
         padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    }
-    
-    /* Centralizar Logo */
-    .logo-container {
-        display: flex;
-        justify-content: center;
-        padding: 20px;
-        background-color: white;
-        margin-bottom: 25px;
-        border-radius: 0 0 20px 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        border-radius: 15px;
+        border-left: 6px solid #007bff;
+        margin-bottom: 20px;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -154,54 +165,59 @@ def processar_artes_web(url, tipo_saida):
     except:
         return None, None
 
-# --- HEADER COM LOGO ---
-st.markdown('<div class="logo-container"><img src="https://www.destaquetoledo.com.br/images/logo.png" width="300"></div>', unsafe_allow_html=True)
+# --- TÍTULO NO TOPO (HTML CUSTOM) ---
+st.markdown("""
+    <div class="topo-titulo">
+        <h1>DESTAQUE TOLEDO</h1>
+        <p>Painel Inteligente de Geração de Conteúdo</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# --- CONTEÚDO ---
-with st.expander("📘 Guia de Operação para a Equipe"):
-    st.write("1. Escolha a notícia na lista à esquerda (os títulos estão alinhados para facilitar a leitura).")
-    st.write("2. Verifique o link no campo central.")
-    st.write("3. Use o botão **AZUL** para post de Feed ou o **ROXO** para Stories.")
-    st.write("4. O botão de download aparecerá logo abaixo da imagem gerada.")
-
+# --- CONTEÚDO PRINCIPAL ---
 col_lista, col_trabalho = st.columns([1, 1.8])
 
 with col_lista:
-    st.subheader("📰 Notícias Recentes")
-    if st.button("🔄 Atualizar Portal"):
+    st.markdown("### 📰 Notícias Recentes")
+    if st.button("🔄 Sincronizar Agora"):
         st.rerun()
     
+    st.write("") # Espaçador
     lista = obter_lista_noticias()
     for item in lista:
-        # Botões agora alinhados à esquerda via CSS
         if st.button(item['titulo'], key=item['url']):
             st.session_state.url_ativa = item['url']
 
 with col_trabalho:
-    url_ativa = st.text_input("🔗 Link em Processamento:", value=st.session_state.get('url_ativa', ''))
+    url_ativa = st.text_input("📍 Notícia em foco:", value=st.session_state.get('url_ativa', ''))
     
     if url_ativa:
-        st.divider()
+        st.markdown("<br>", unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         
         with c1:
-            if st.button("🖼️ GERAR ARTE FEED"):
-                with st.spinner("Processando..."):
+            if st.button("🖼️ GERAR PARA FEED"):
+                with st.spinner("Criando arte quadrada..."):
                     img, tit = processar_artes_web(url_ativa, "FEED")
                     if img:
                         st.image(img, use_container_width=True)
                         buf = io.BytesIO()
                         img.save(buf, format="JPEG", quality=95)
-                        st.download_button("📥 Baixar Feed", buf.getvalue(), f"feed_{tit[:10]}.jpg", "image/jpeg")
+                        st.download_button("📥 Baixar Imagem Feed", buf.getvalue(), f"feed_destaque.jpg", "image/jpeg")
 
         with c2:
-            if st.button("📱 GERAR ARTE STORY"):
-                with st.spinner("Processando..."):
+            if st.button("📱 GERAR PARA STORY"):
+                with st.spinner("Criando arte vertical..."):
                     img, tit = processar_artes_web(url_ativa, "STORY")
                     if img:
                         st.image(img, width=280)
                         buf = io.BytesIO()
                         img.save(buf, format="JPEG", quality=95)
-                        st.download_button("📥 Baixar Story", buf.getvalue(), f"story_{tit[:10]}.jpg", "image/jpeg")
+                        st.download_button("📥 Baixar Imagem Story", buf.getvalue(), f"story_destaque.jpg", "image/jpeg")
     else:
-        st.info("👈 Selecione uma matéria na lista lateral para iniciar a criação.")
+        st.markdown("""
+            <div class="instrucao-card">
+                <h4>Bem-vindo!</h4>
+                <p>Para começar, escolha uma notícia na lista ao lado.</p>
+                <small>O sistema buscará automaticamente o título e a imagem da matéria.</small>
+            </div>
+        """, unsafe_allow_html=True)

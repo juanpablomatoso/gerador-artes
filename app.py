@@ -7,81 +7,38 @@ import io
 import os
 
 # Configuração da página
-st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="📸")
+st.set_page_config(page_title="Painel Destaque - Editável", layout="wide", page_icon="🎨")
 
-# --- ESTILIZAÇÃO CSS PROFISSIONAL ---
+# --- ESTILIZAÇÃO CSS ---
 st.markdown("""
     <style>
-    /* Fundo do App */
-    .main { background-color: #f4f7f9; }
-    
-    /* Cabeçalho de Texto Estilizado */
-    .header-container {
-        text-align: center;
-        padding: 30px;
-        background: linear-gradient(135deg, #004a99 0%, #007bff 100%);
-        color: white;
-        border-radius: 0 0 25px 25px;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-    .header-title { font-size: 32px; font-weight: 800; letter-spacing: 1px; margin: 0; }
-    .header-subtitle { font-size: 14px; opacity: 0.9; font-weight: 300; }
-
-    /* Botões da Lista de Notícias (Alinhados à Esquerda) */
+    .main { background-color: #f8f9fa; }
     .stButton>button {
         width: 100%;
         text-align: left !important;
-        border-radius: 10px !important;
-        border: none !important;
+        border-radius: 8px !important;
+        border: 1px solid #e0e0e0 !important;
         background-color: white !important;
-        padding: 15px !important;
-        color: #2c3e50 !important;
-        font-weight: 500 !important;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
-        transition: all 0.2s ease;
-        margin-bottom: 5px;
+        padding: 12px !important;
+        color: #333 !important;
     }
-    .stButton>button:hover {
-        background-color: #eef6ff !important;
-        color: #007bff !important;
-        transform: scale(1.02);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
-    }
-
-    /* Estilo dos Botões de Ação Principal (Feed e Story) */
-    div[data-testid="stColumn"]:nth-of-type(1) button {
-        background: #007bff !important; /* Azul Royal */
-        color: white !important;
-        text-align: center !important;
-        font-weight: bold !important;
-        height: 50px;
-    }
-    div[data-testid="stColumn"]:nth-of-type(2) button {
-        background: #6610f2 !important; /* Roxo Intenso */
-        color: white !important;
-        text-align: center !important;
-        font-weight: bold !important;
-        height: 50px;
-    }
+    .stButton>button:hover { border-color: #007bff !important; background-color: #f0f7ff !important; }
     
-    /* Área de Preview */
-    .preview-box {
-        background-color: white;
-        padding: 20px;
-        border-radius: 15px;
-        border: 1px solid #e1e8ed;
-    }
+    /* Cores dos Botões de Geração */
+    .btn-feed { background-color: #007bff !important; color: white !important; font-weight: bold !important; }
+    .btn-story { background-color: #6f42c1 !important; color: white !important; font-weight: bold !important; }
+    
+    .logo-container { display: flex; justify-content: center; padding: 20px; background: white; border-radius: 0 0 20px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURAÇÕES DE CAMINHOS ---
+# --- CONFIGURAÇÕES ---
 CAMINHO_FONTE = "Shoika Bold.ttf"
 TEMPLATE_FEED = "template_feed.png"
 TEMPLATE_STORIE = "template_storie.png"
-HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-# --- FUNÇÕES DE BUSCA E PROCESSAMENTO ---
+# --- FUNÇÕES ---
 def obter_lista_noticias():
     try:
         url_site = "https://www.destaquetoledo.com.br/"
@@ -91,124 +48,120 @@ def obter_lista_noticias():
         for a in soup.find_all("a", href=True):
             href = a['href']
             if ".html" in href and "/20" in href and href not in [n['url'] for n in noticias]:
-                titulo_limpo = a.get_text(strip=True)
-                if len(titulo_limpo) > 15:
-                    noticias.append({"titulo": titulo_limpo, "url": href})
+                t = a.get_text(strip=True)
+                if len(t) > 15: noticias.append({"titulo": t, "url": href})
         return noticias[:12]
     except: return []
 
-def processar_artes_web(url, tipo_saida):
+def processar_arte_custom(url, tipo, texto_custom, tam_fonte, ajuste_y):
     try:
         res_m = requests.get(url, headers=HEADERS).text
         soup_m = BeautifulSoup(res_m, "html.parser")
-        titulo = soup_m.find("h1").get_text(strip=True)
+        
+        # Se o usuário não editou, pega o original do site
+        titulo_final = texto_custom if texto_custom else soup_m.find("h1").get_text(strip=True)
+        
         corpo = soup_m.find(class_="post-body") or soup_m
         img_url = next(img.get("src") for img in corpo.find_all("img") if "logo" not in img.get("src").lower())
         
         img_res = requests.get(img_url, headers=HEADERS)
-        img_original = Image.open(io.BytesIO(img_res.content)).convert("RGBA")
-        larg_o, alt_o = img_original.size
+        img_o = Image.open(io.BytesIO(img_res.content)).convert("RGBA")
+        larg_o, alt_o = img_o.size
         prop_o = larg_o / alt_o
 
-        if tipo_saida == "FEED":
+        if tipo == "FEED":
             TAM = 1000
             if prop_o > 1.0:
                 n_alt = TAM
                 n_larg = int(TAM * prop_o)
-                img_f = img_original.resize((n_larg, n_alt), Image.LANCZOS).crop(((n_larg-TAM)//2, 0, (n_larg-TAM)//2+TAM, TAM))
+                img_f = img_o.resize((n_larg, n_alt), Image.LANCZOS).crop(((n_larg-TAM)//2, 0, (n_larg-TAM)//2+TAM, TAM))
             else:
                 n_larg = TAM
                 n_alt = int(TAM / prop_o)
-                img_f = img_original.resize((n_larg, n_alt), Image.LANCZOS).crop((0, (n_alt-TAM)//2, TAM, (n_alt-TAM)//2+TAM))
+                img_f = img_o.resize((n_larg, n_alt), Image.LANCZOS).crop((0, (n_alt-TAM)//2, TAM, (n_alt-TAM)//2+TAM))
+            
             if os.path.exists(TEMPLATE_FEED):
                 img_f.alpha_composite(Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAM, TAM)))
+            
             draw = ImageDraw.Draw(img_f)
-            tam = 85
-            while tam > 20:
-                fnt = ImageFont.truetype(CAMINHO_FONTE, tam)
-                lns = textwrap.wrap(titulo, width=int(662/(fnt.getlength("W")*0.55)))
-                if (len(lns)*tam) <= 165 and len(lns) <= 3: break
-                tam -= 1
-            y = 811 - ((len(lns)*tam)//2)
-            for l in lns:
-                draw.text((488 - (draw.textbbox((0,0), l, font=fnt)[2]//2), y), l, fill="black", font=fnt)
-                y += tam + 4
-            return img_f.convert("RGB"), titulo
+            fonte = ImageFont.truetype(CAMINHO_FONTE, tam_fonte)
+            # Quebra de linha dinâmica baseada no tamanho da fonte escolhido
+            linhas = textwrap.wrap(titulo_final, width=int(662/(fonte.getlength("W")*0.5/tam_fonte)))
+            
+            y_base = 811 + ajuste_y # 811 é o centro original
+            alt_total = len(linhas) * tam_fonte
+            y = y_base - (alt_total // 2)
+            
+            for l in linhas:
+                w_l = draw.textbbox((0,0), l, font=fonte)[2]
+                draw.text((488 - (w_l//2), y), l, fill="black", font=fonte)
+                y += tam_fonte + 5
+            return img_f.convert("RGB")
+
         else: # STORY
             L_S, A_S = 940, 541
             ratio = L_S / A_S
             ns_l, ns_a = (int(A_S*prop_o), A_S) if prop_o > ratio else (L_S, int(L_S/prop_o))
-            img_s = img_original.resize((ns_l, ns_a), Image.LANCZOS).crop(((ns_l-L_S)//2, (ns_a-A_S)//2, (ns_l-L_S)//2+L_S, (ns_a-A_S)//2+A_S))
+            img_s = img_o.resize((ns_l, ns_a), Image.LANCZOS).crop(((ns_l-L_S)//2, (ns_a-A_S)//2, (ns_l-L_S)//2+L_S, (ns_a-A_S)//2+A_S))
+            
             canvas = Image.new("RGBA", (1080, 1920), (0,0,0,0))
             canvas.paste(img_s, (69, 504))
             if os.path.exists(TEMPLATE_STORIE):
                 canvas.alpha_composite(Image.open(TEMPLATE_STORIE).convert("RGBA").resize((1080, 1920)))
+            
             draw = ImageDraw.Draw(canvas)
-            tam = 60
-            while tam > 20:
-                fnt = ImageFont.truetype(CAMINHO_FONTE, tam)
-                lns = textwrap.wrap(titulo, width=int(912/(fnt.getlength("W")*0.55)))
-                if (len(lns)*tam) <= 300 and len(lns) <= 4: break
-                tam -= 2
-            y = 1079
+            fonte = ImageFont.truetype(CAMINHO_FONTE, tam_fonte)
+            linhas = textwrap.wrap(titulo_final, width=int(912/(fonte.getlength("W")*0.5/tam_fonte)))
+            
+            y = 1079 + ajuste_y
             for l in lns:
-                draw.text((69, y), l, fill="white", font=fnt)
-                y += tam + 12
-            return canvas.convert("RGB"), titulo
-    except: return None, None
+                draw.text((69, y), l, fill="white", font=fonte)
+                y += tam_fonte + 10
+            return canvas.convert("RGB")
+    except: return None
 
-# --- CABEÇALHO PERSONALIZADO ---
-st.markdown("""
-    <div class="header-container">
-        <h1 class="header-title">PAINEL DE PRODUÇÃO</h1>
-        <p class="header-subtitle">CENTRAL DE ARTES AUTOMÁTICAS | DESTAQUE TOLEDO</p>
-    </div>
-    """, unsafe_allow_html=True)
+# --- UI ---
+st.markdown('<div class="logo-container"><img src="https://www.destaquetoledo.com.br/images/logo.png" width="250"></div>', unsafe_allow_html=True)
 
-# --- LAYOUT PRINCIPAL ---
-col_lista, col_trabalho = st.columns([1, 1.8])
+col_lista, col_editor = st.columns([1, 1.8])
 
 with col_lista:
-    st.markdown("### 📰 Notícias Recentes")
-    if st.button("🔄 Atualizar Lista do Site"):
-        st.rerun()
-    
+    st.subheader("📰 Notícias")
+    if st.button("🔄 Atualizar"): st.rerun()
     lista = obter_lista_noticias()
-    if not lista:
-        st.info("Nenhuma notícia nova encontrada.")
     for item in lista:
         if st.button(item['titulo'], key=item['url']):
             st.session_state.url_ativa = item['url']
+            st.session_state.txt_edit = item['titulo'] # Carrega o título para o editor
 
-with col_trabalho:
-    url_ativa = st.text_input("🔗 Matéria em Edição:", value=st.session_state.get('url_ativa', ''))
-    
-    if url_ativa:
-        st.markdown('<div class="preview-box">', unsafe_allow_html=True)
-        st.markdown("### 🎨 Criar Conteúdo")
-        c1, c2 = st.columns(2)
+with col_editor:
+    if 'url_ativa' in st.session_state:
+        st.subheader("⚙️ Personalizar Arte")
         
-        with c1:
-            if st.button("🖼️ GERAR POST FEED"):
-                with st.spinner("Criando arte quadrada..."):
-                    img, tit = processar_artes_web(url_ativa, "FEED")
-                    if img:
-                        st.image(img, use_container_width=True)
-                        buf = io.BytesIO()
-                        img.save(buf, format="JPEG", quality=95)
-                        st.download_button("📥 Baixar Feed", buf.getvalue(), f"feed_{tit[:10]}.jpg", "image/jpeg")
-                        st.success("Pronto para postar!")
+        # Área de Edição
+        txt_editado = st.text_area("Editar Título:", value=st.session_state.get('txt_edit', ''), height=100)
+        
+        c_p1, c_p2 = st.columns(2)
+        tam_f = c_p1.slider("Tamanho da Fonte:", 30, 120, 75)
+        pos_y = c_p2.slider("Ajuste de Altura (Sobe/Desce):", -100, 100, 0)
+        
+        st.divider()
+        
+        c1, c2 = st.columns(2)
+        if c1.button("🖼️ GERAR FEED", use_container_width=True):
+            res = processar_arte_custom(st.session_state.url_ativa, "FEED", txt_editado, tam_f, pos_y)
+            if res:
+                st.image(res)
+                buf = io.BytesIO()
+                res.save(buf, format="JPEG")
+                st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg")
 
-        with c2:
-            if st.button("📱 GERAR STORY"):
-                with st.spinner("Criando arte vertical..."):
-                    img, tit = processar_artes_web(url_ativa, "STORY")
-                    if img:
-                        st.image(img, width=280)
-                        buf = io.BytesIO()
-                        img.save(buf, format="JPEG", quality=95)
-                        st.download_button("📥 Baixar Story", buf.getvalue(), f"story_{tit[:10]}.jpg", "image/jpeg")
-                        st.success("Pronto para os stories!")
-        st.markdown('</div>', unsafe_allow_html=True)
+        if c2.button("📱 GERAR STORY", use_container_width=True):
+            res = processar_arte_custom(st.session_state.url_ativa, "STORY", txt_editado, tam_f, pos_y)
+            if res:
+                st.image(res, width=300)
+                buf = io.BytesIO()
+                res.save(buf, format="JPEG")
+                st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg")
     else:
-        st.warning("👈 Selecione uma notícia na lista ao lado para começar.")
+        st.info("👈 Selecione uma notícia para liberar o editor.")

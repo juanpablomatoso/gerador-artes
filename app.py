@@ -7,7 +7,7 @@ import io
 import os
 
 # Configuração da página
-st.set_page_config(page_title="Gerador Destaque Toledo", layout="centered")
+st.set_page_config(page_title="Gerador Destaque Toledo", layout="wide")
 
 # --- CONFIGURAÇÕES DE CAMINHOS ---
 CAMINHO_FONTE = "Shoika Bold.ttf"
@@ -15,9 +15,31 @@ TEMPLATE_FEED = "template_feed.png"
 TEMPLATE_STORIE = "template_storie.png"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
+# --- FUNÇÃO PARA PUXAR A LISTA AUTOMÁTICA ---
+def obter_lista_noticias():
+    try:
+        url_site = "https://www.destaquetoledo.com.br/"
+        res = requests.get(url_site, headers=HEADERS, timeout=10).text
+        soup = BeautifulSoup(res, "html.parser")
+        noticias = []
+        
+        # Busca links que contenham datas no formato do site (/2024/ ou /2025/)
+        for a in soup.find_all("a", href=True):
+            href = a['href']
+            # Filtra apenas links de notícias e evita duplicados
+            if ".html" in href and "/20" in href and href not in [n['url'] for n in noticias]:
+                titulo_limpo = a.get_text(strip=True)
+                if len(titulo_limpo) > 10: # Evita links vazios ou ícones
+                    noticias.append({"titulo": titulo_limpo, "url": href})
+        
+        return noticias[:10] # Retorna as 10 mais recentes
+    except Exception as e:
+        st.error(f"Erro ao buscar lista: {e}")
+        return []
+
+# --- SUA LÓGICA ORIGINAL DE PROCESSAMENTO ---
 def processar_artes_web(url, tipo_saida):
     try:
-        # 1. BUSCA DE DADOS
         res_m = requests.get(url, headers=HEADERS).text
         soup_m = BeautifulSoup(res_m, "html.parser")
         titulo = soup_m.find("h1").get_text(strip=True)
@@ -30,7 +52,6 @@ def processar_artes_web(url, tipo_saida):
         prop_o = larg_o / alt_o
 
         if tipo_saida == "FEED":
-            # --- LÓGICA DO FEED (EXATAMENTE IGUAL AO SEU) ---
             TAMANHO_FEED = 1000
             if prop_o > 1.0:
                 n_alt = TAMANHO_FEED
@@ -56,8 +77,7 @@ def processar_artes_web(url, tipo_saida):
                 limite_f = int(662 / (fonte_f.getlength("W") * 0.55))
                 linhas_f = textwrap.wrap(titulo, width=max(10, limite_f))
                 alt_bloco_f = (len(linhas_f) * tam_f) + ((len(linhas_f)-1) * 4)
-                if alt_bloco_f <= 165 and len(linhas_f) <= 3: 
-                    break
+                if alt_bloco_f <= 165 and len(linhas_f) <= 3: break
                 tam_f -= 1
             
             y_f = 811 - (alt_bloco_f // 2)
@@ -67,8 +87,7 @@ def processar_artes_web(url, tipo_saida):
                 y_f += tam_f + 4
             return fundo_f.convert("RGB")
 
-        else:
-            # --- LÓGICA DO STORY (EXATAMENTE IGUAL AO SEU) ---
+        else: # STORY
             LARG_STORY, ALT_STORY = 940, 541
             ratio_a = LARG_STORY / ALT_STORY
             if prop_o > ratio_a:
@@ -97,8 +116,7 @@ def processar_artes_web(url, tipo_saida):
                 limite_s = int(912 / (fonte_s.getlength("W") * 0.55))
                 linhas_s = textwrap.wrap(titulo, width=max(10, limite_s))
                 alt_bloco_s = (len(linhas_s) * tam_s) + (len(linhas_s) * 10)
-                if alt_bloco_s <= 300 and len(linhas_s) <= 4: 
-                    break
+                if alt_bloco_s <= 300 and len(linhas_s) <= 4: break
                 tam_s -= 2
                 
             y_s = 1079
@@ -112,30 +130,39 @@ def processar_artes_web(url, tipo_saida):
         return None
 
 # --- INTERFACE ---
-st.title("🎨 Gerador Destaque Toledo")
-st.write("Cole o link da matéria abaixo para gerar as artes com suas medidas originais.")
+st.title("🚀 Painel Destaque Toledo")
 
-url_input = st.text_input("URL da Matéria:", placeholder="https://www.destaquetoledo.com.br/noticia/...")
+col_lista, col_preview = st.columns([1, 1.5])
 
-if url_input:
-    col1, col2 = st.columns(2)
+with col_lista:
+    st.subheader("📰 Últimas do Site")
+    if st.button("🔄 Atualizar Lista"):
+        st.rerun()
     
-    with col1:
-        if st.button("🖼️ Gerar Feed (1000x1000)"):
-            with st.spinner("Processando Feed..."):
-                img_f = processar_artes_web(url_input, "FEED")
-                if img_f:
-                    st.image(img_f, use_container_width=True)
-                    buf = io.BytesIO()
-                    img_f.save(buf, format="JPEG", quality=95)
-                    st.download_button("📥 Baixar Feed", buf.getvalue(), "feed_destaque.jpg", "image/jpeg")
+    lista = obter_lista_noticias()
+    for item in lista:
+        if st.button(item['titulo'], key=item['url'], use_container_width=True):
+            st.session_state.url_ativa = item['url']
 
-    with col2:
-        if st.button("📱 Gerar Story (1080x1920)"):
-            with st.spinner("Processando Story..."):
-                img_s = processar_artes_web(url_input, "STORY")
-                if img_s:
-                    st.image(img_s, use_container_width=True)
+with col_preview:
+    url_final = st.text_input("Link selecionado:", value=st.session_state.get('url_ativa', ''))
+    
+    if url_final:
+        st.subheader("🎨 Gerar Artes")
+        c1, c2 = st.columns(2)
+        with c1:
+            if st.button("🖼️ Gerar Feed"):
+                img = processar_artes_web(url_final, "FEED")
+                if img:
+                    st.image(img)
                     buf = io.BytesIO()
-                    img_s.save(buf, format="JPEG", quality=95)
-                    st.download_button("📥 Baixar Story", buf.getvalue(), "story_destaque.jpg", "image/jpeg")
+                    img.save(buf, format="JPEG")
+                    st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg", "image/jpeg")
+        with c2:
+            if st.button("📱 Gerar Story"):
+                img = processar_artes_web(url_final, "STORY")
+                if img:
+                    st.image(img, width=250)
+                    buf = io.BytesIO()
+                    img.save(buf, format="JPEG")
+                    st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg", "image/jpeg")

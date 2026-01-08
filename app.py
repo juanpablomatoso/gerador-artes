@@ -9,62 +9,68 @@ import os
 # Configuração da página
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="📸")
 
-# --- ESTILIZAÇÃO CSS AVANÇADA ---
+# --- ESTILIZAÇÃO CSS PROFISSIONAL ---
 st.markdown("""
     <style>
-    /* Fundo e Fonte Geral */
-    .main { background-color: #f8f9fa; }
+    /* Fundo do App */
+    .main { background-color: #f4f7f9; }
     
+    /* Cabeçalho de Texto Estilizado */
+    .header-container {
+        text-align: center;
+        padding: 30px;
+        background: linear-gradient(135deg, #004a99 0%, #007bff 100%);
+        color: white;
+        border-radius: 0 0 25px 25px;
+        margin-bottom: 30px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .header-title { font-size: 32px; font-weight: 800; letter-spacing: 1px; margin: 0; }
+    .header-subtitle { font-size: 14px; opacity: 0.9; font-weight: 300; }
+
     /* Botões da Lista de Notícias (Alinhados à Esquerda) */
     .stButton>button {
         width: 100%;
         text-align: left !important;
-        border-radius: 8px !important;
-        border: 1px solid #e0e0e0 !important;
+        border-radius: 10px !important;
+        border: none !important;
         background-color: white !important;
-        padding: 12px !important;
-        color: #333 !important;
+        padding: 15px !important;
+        color: #2c3e50 !important;
         font-weight: 500 !important;
-        transition: all 0.3s ease;
-        line-height: 1.4;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+        transition: all 0.2s ease;
+        margin-bottom: 5px;
     }
     .stButton>button:hover {
-        border-color: #007bff !important;
-        background-color: #f0f7ff !important;
-        transform: translateX(5px);
+        background-color: #eef6ff !important;
+        color: #007bff !important;
+        transform: scale(1.02);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1) !important;
     }
 
-    /* Cores dos Botões de Ação Principal */
+    /* Estilo dos Botões de Ação Principal (Feed e Story) */
     div[data-testid="stColumn"]:nth-of-type(1) button {
-        background-color: #007bff !important; /* Azul Feed */
+        background: #007bff !important; /* Azul Royal */
         color: white !important;
-        font-weight: bold !important;
         text-align: center !important;
+        font-weight: bold !important;
+        height: 50px;
     }
     div[data-testid="stColumn"]:nth-of-type(2) button {
-        background-color: #6f42c1 !important; /* Roxo Story */
+        background: #6610f2 !important; /* Roxo Intenso */
         color: white !important;
-        font-weight: bold !important;
         text-align: center !important;
-    }
-
-    /* Container do Manual */
-    .instrucoes {
-        background-color: white;
-        padding: 20px;
-        border-radius: 12px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        font-weight: bold !important;
+        height: 50px;
     }
     
-    /* Centralizar Logo */
-    .logo-container {
-        display: flex;
-        justify-content: center;
-        padding: 20px;
+    /* Área de Preview */
+    .preview-box {
         background-color: white;
-        margin-bottom: 25px;
-        border-radius: 0 0 20px 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        padding: 20px;
+        border-radius: 15px;
+        border: 1px solid #e1e8ed;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -75,7 +81,7 @@ TEMPLATE_FEED = "template_feed.png"
 TEMPLATE_STORIE = "template_storie.png"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-# --- FUNÇÕES CORE ---
+# --- FUNÇÕES DE BUSCA E PROCESSAMENTO ---
 def obter_lista_noticias():
     try:
         url_site = "https://www.destaquetoledo.com.br/"
@@ -89,8 +95,7 @@ def obter_lista_noticias():
                 if len(titulo_limpo) > 15:
                     noticias.append({"titulo": titulo_limpo, "url": href})
         return noticias[:12]
-    except:
-        return []
+    except: return []
 
 def processar_artes_web(url, tipo_saida):
     try:
@@ -129,7 +134,6 @@ def processar_artes_web(url, tipo_saida):
                 draw.text((488 - (draw.textbbox((0,0), l, font=fnt)[2]//2), y), l, fill="black", font=fnt)
                 y += tam + 4
             return img_f.convert("RGB"), titulo
-
         else: # STORY
             L_S, A_S = 940, 541
             ratio = L_S / A_S
@@ -151,57 +155,60 @@ def processar_artes_web(url, tipo_saida):
                 draw.text((69, y), l, fill="white", font=fnt)
                 y += tam + 12
             return canvas.convert("RGB"), titulo
-    except:
-        return None, None
+    except: return None, None
 
-# --- HEADER COM LOGO ---
-st.markdown('<div class="logo-container"><img src="https://www.destaquetoledo.com.br/images/logo.png" width="300"></div>', unsafe_allow_html=True)
+# --- CABEÇALHO PERSONALIZADO ---
+st.markdown("""
+    <div class="header-container">
+        <h1 class="header-title">PAINEL DE PRODUÇÃO</h1>
+        <p class="header-subtitle">CENTRAL DE ARTES AUTOMÁTICAS | DESTAQUE TOLEDO</p>
+    </div>
+    """, unsafe_allow_html=True)
 
-# --- CONTEÚDO ---
-with st.expander("📘 Guia de Operação para a Equipe"):
-    st.write("1. Escolha a notícia na lista à esquerda (os títulos estão alinhados para facilitar a leitura).")
-    st.write("2. Verifique o link no campo central.")
-    st.write("3. Use o botão **AZUL** para post de Feed ou o **ROXO** para Stories.")
-    st.write("4. O botão de download aparecerá logo abaixo da imagem gerada.")
-
+# --- LAYOUT PRINCIPAL ---
 col_lista, col_trabalho = st.columns([1, 1.8])
 
 with col_lista:
-    st.subheader("📰 Notícias Recentes")
-    if st.button("🔄 Atualizar Portal"):
+    st.markdown("### 📰 Notícias Recentes")
+    if st.button("🔄 Atualizar Lista do Site"):
         st.rerun()
     
     lista = obter_lista_noticias()
+    if not lista:
+        st.info("Nenhuma notícia nova encontrada.")
     for item in lista:
-        # Botões agora alinhados à esquerda via CSS
         if st.button(item['titulo'], key=item['url']):
             st.session_state.url_ativa = item['url']
 
 with col_trabalho:
-    url_ativa = st.text_input("🔗 Link em Processamento:", value=st.session_state.get('url_ativa', ''))
+    url_ativa = st.text_input("🔗 Matéria em Edição:", value=st.session_state.get('url_ativa', ''))
     
     if url_ativa:
-        st.divider()
+        st.markdown('<div class="preview-box">', unsafe_allow_html=True)
+        st.markdown("### 🎨 Criar Conteúdo")
         c1, c2 = st.columns(2)
         
         with c1:
-            if st.button("🖼️ GERAR ARTE FEED"):
-                with st.spinner("Processando..."):
+            if st.button("🖼️ GERAR POST FEED"):
+                with st.spinner("Criando arte quadrada..."):
                     img, tit = processar_artes_web(url_ativa, "FEED")
                     if img:
                         st.image(img, use_container_width=True)
                         buf = io.BytesIO()
                         img.save(buf, format="JPEG", quality=95)
                         st.download_button("📥 Baixar Feed", buf.getvalue(), f"feed_{tit[:10]}.jpg", "image/jpeg")
+                        st.success("Pronto para postar!")
 
         with c2:
-            if st.button("📱 GERAR ARTE STORY"):
-                with st.spinner("Processando..."):
+            if st.button("📱 GERAR STORY"):
+                with st.spinner("Criando arte vertical..."):
                     img, tit = processar_artes_web(url_ativa, "STORY")
                     if img:
                         st.image(img, width=280)
                         buf = io.BytesIO()
                         img.save(buf, format="JPEG", quality=95)
                         st.download_button("📥 Baixar Story", buf.getvalue(), f"story_{tit[:10]}.jpg", "image/jpeg")
+                        st.success("Pronto para os stories!")
+        st.markdown('</div>', unsafe_allow_html=True)
     else:
-        st.info("👈 Selecione uma matéria na lista lateral para iniciar a criação.")
+        st.warning("👈 Selecione uma notícia na lista ao lado para começar.")

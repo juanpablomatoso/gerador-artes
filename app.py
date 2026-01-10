@@ -581,7 +581,7 @@ else:
                         f"<div class='card-pauta {classe_cor}'><small>{p[3]}</small><br><b>{p[1]}</b></div>",
                         unsafe_allow_html=True,
                     )
-                    if st.button("Remover", key=f"ex_{p[0]}"):
+if st.button("Remover", key=f"ex_{p[0]}"):
     if st.session_state.get(f"confirm_rm_{p[0]}", False):
         conn = get_conn()
         c = conn.cursor()
@@ -669,6 +669,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

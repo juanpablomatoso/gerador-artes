@@ -5,13 +5,13 @@ from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import io
 import os
-import sqlite3 # Novo: Para persistência de dados
+import sqlite3
 from datetime import datetime
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="📸")
 
-# --- 2. BANCO DE DADOS (NOVO) ---
+# --- 2. BANCO DE DADOS (Persistência da Agenda) ---
 def init_db():
     conn = sqlite3.connect('agenda_destaque.db')
     c = conn.cursor()
@@ -35,15 +35,13 @@ def carregar_pautas():
     conn.close()
     return dados
 
-# Inicializa o banco ao rodar o app
 init_db()
 pautas_salvas = carregar_pautas()
 
-# --- 3. ESTILIZAÇÃO CSS (MANTIDA) ---
+# --- 3. ESTILIZAÇÃO CSS ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
-    [data-testid="stSidebar"] { background-color: #0e1117; border-right: 1px solid #30363d; }
     .topo-titulo {
         text-align: center; padding: 30px;
         background: linear-gradient(90deg, #004a99 0%, #007bff 100%);
@@ -51,15 +49,11 @@ st.markdown("""
         margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     }
     .topo-titulo h1 { margin: 0; font-size: 2.5rem; font-weight: 800; }
-    .stButton>button {
-        width: 100%; border-radius: 10px !important;
-        transition: all 0.2s ease;
-    }
-    .instrucao-card { background: white; padding: 20px; border-radius: 15px; border-left: 6px solid #007bff; margin-bottom: 20px; }
+    .instrucao-card { background: white; padding: 20px; border-radius: 15px; border-left: 6px solid #007bff; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 4. CONFIGURAÇÕES E FUNÇÕES CORE (MANTIDAS) ---
+# --- 4. CONFIGURAÇÕES CORE ---
 CAMINHO_FONTE = "Shoika Bold.ttf"
 TEMPLATE_FEED = "template_feed.png"
 TEMPLATE_STORIE = "template_storie.png"
@@ -116,7 +110,7 @@ def processar_artes_web(url, tipo_saida):
             for l in lns:
                 draw.text((488 - (draw.textbbox((0,0), l, font=fnt)[2]//2), y), l, fill="black", font=fnt)
                 y += tam + 4
-            return img_f.convert("RGB"), titulo
+            return img_f.convert("RGB")
 
         else: # STORY
             L_S, A_S = 940, 541
@@ -138,71 +132,54 @@ def processar_artes_web(url, tipo_saida):
             for l in lns:
                 draw.text((69, y), l, fill="white", font=fnt)
                 y += tam + 12
-            return canvas.convert("RGB"), titulo
-    except: return None, None
+            return canvas.convert("RGB")
+    except: return None
 
-# --- 5. INTERFACE EM ABAS ---
-st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel Integrado de Gestão</p></div>', unsafe_allow_html=True)
+# --- 5. INTERFACE ---
+st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel de Produção</p></div>', unsafe_allow_html=True)
 
-aba_gerador, aba_agenda, aba_publi, aba_artes = st.tabs([
-    "🎨 GERADOR DE ARTES", "📅 AGENDA SEMANAL", "📢 PUBLICIDADES", "🖼️ ARTES PRONTAS"
-])
+aba_gerador, aba_agenda = st.tabs(["🎨 GERADOR DE ARTES", "📅 AGENDA SEMANAL"])
 
-# ABA 1: GERADOR
 with aba_gerador:
     col_lista, col_trabalho = st.columns([1, 1.8])
     with col_lista:
         st.markdown("### 📰 Notícias Recentes")
-        if st.button("🔄 Sincronizar Agora"): st.rerun()
+        if st.button("🔄 Sincronizar"): st.rerun()
         lista = obter_lista_noticias()
         for item in lista:
             if st.button(item['titulo'], key=f"gen_{item['url']}"):
                 st.session_state.url_ativa = item['url']
+    
     with col_trabalho:
-        url_ativa = st.text_input("📍 Notícia em foco:", value=st.session_state.get('url_ativa', ''))
+        url_ativa = st.text_input("📍 Link da Notícia:", value=st.session_state.get('url_ativa', ''))
         if url_ativa:
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("🖼️ GERAR PARA FEED"):
-                    img, _ = processar_artes_web(url_ativa, "FEED")
+                if st.button("🖼️ GERAR FEED"):
+                    img = processar_artes_web(url_ativa, "FEED")
                     if img: 
                         st.image(img, use_container_width=True)
                         buf = io.BytesIO(); img.save(buf, format="JPEG", quality=95)
                         st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg", "image/jpeg")
             with c2:
-                if st.button("📱 GERAR PARA STORY"):
-                    img, _ = processar_artes_web(url_ativa, "STORY")
+                if st.button("📱 GERAR STORY"):
+                    img = processar_artes_web(url_ativa, "STORY")
                     if img: 
                         st.image(img, width=280)
                         buf = io.BytesIO(); img.save(buf, format="JPEG", quality=95)
                         st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg", "image/jpeg")
         else:
-            st.markdown('<div class="instrucao-card"><h4>Escolha uma notícia ao lado para começar.</h4></div>', unsafe_allow_html=True)
+            st.markdown('<div class="instrucao-card"><h4>Selecione uma notícia ao lado para gerar a arte.</h4></div>', unsafe_allow_html=True)
 
-# ABA 2: AGENDA (AGORA COM PERSISTÊNCIA REAL)
 with aba_agenda:
-    st.markdown("### 📅 Agenda de Stories Fixos (Salva Automaticamente)")
+    st.markdown("### 📅 Planejamento Semanal (Auto-salvamento)")
     dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
     cols = st.columns(7)
-    
     for i, dia in enumerate(dias):
         with cols[i]:
             st.markdown(f"**{dia}**")
-            # Carrega o valor inicial do banco de dados
-            valor_inicial = pautas_salvas.get(dia, "")
-            
-            # Text area para edição
-            texto_pauta = st.text_area(
-                "Pauta:", 
-                value=valor_inicial, 
-                key=f"txt_{dia}", 
-                height=300, 
-                label_visibility="collapsed"
-            )
-            
-            # Se o texto mudou, salva no banco
-            if texto_pauta != valor_inicial:
-                salvar_pauta(dia, texto_pauta)
+            valor_ini = pautas_salvas.get(dia, "")
+            texto = st.text_area("Pauta:", value=valor_ini, key=f"txt_{dia}", height=350, label_visibility="collapsed")
+            if texto != valor_ini:
+                salvar_pauta(dia, texto)
                 st.toast(f"Salvo: {dia}", icon="✅")
-
-# (As demais abas Publicidade e Artes Prontas seguem o seu modelo original...)

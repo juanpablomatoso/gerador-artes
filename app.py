@@ -7,7 +7,6 @@ import io
 import os
 import sqlite3
 from datetime import datetime, timedelta
-import time
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
@@ -37,10 +36,6 @@ st.markdown("""
         color: white !important; text-decoration: none; border-radius: 5px;
         margin-top: 10px; font-weight: bold;
     }
-    /* Estilo para links de login */
-    .login-footer {
-        text-align: center; margin-top: 10px; font-size: 0.8rem;
-    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -54,47 +49,30 @@ def init_db():
 
 init_db()
 
-# --- 4. LÓGICA DE LOGIN (ALTERADA CONFORME SOLICITADO) ---
+# --- 4. LÓGICA DE LOGIN (APENAS MANTENHA-ME CONECTADO) ---
 if 'autenticado' not in st.session_state:
     st.session_state.autenticado = False
 
-# Simulação de cookies/manter conectado (Em produção usaria extra-library, aqui usamos session persistente no servidor)
 if not st.session_state.autenticado:
-    st.markdown('<div class="topo-titulo"><h1>Painel de Acesso</h1><p>Destaque Toledo</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel de Controle</p></div>', unsafe_allow_html=True)
     
-    col1, col2, col3 = st.columns([1,1.5,1])
+    _, col2, _ = st.columns([1, 1.2, 1])
     
     with col2:
-        tab_login, tab_recuperar = st.tabs(["Entrar", "Recuperar Senha"])
-        
-        with tab_login:
-            with st.form("login_form"):
-                u = st.text_input("Usuário").lower().strip()
-                s = st.text_input("Senha", type="password")
-                manter_logado = st.checkbox("Mantenha-me conectado")
-                
-                if st.form_submit_button("Acessar Painel"):
-                    if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
-                        st.session_state.autenticado = True
-                        st.session_state.perfil = u
-                        if manter_logado:
-                            st.info("Conexão salva neste navegador.")
-                        st.rerun()
-                    else:
-                        st.error("Usuário ou senha incorretos.")
-        
-        with tab_recuperar:
-            st.write("Digite seu e-mail cadastrado para receber as instruções de recuperação.")
-            email_input = st.text_input("E-mail", placeholder="exemplo@email.com")
-            if st.button("Enviar Link de Recuperação"):
-                if email_input == "juanmatosopablo@hotmail.com" or "@" in email_input:
-                    with st.spinner("Processando..."):
-                        time.sleep(2)
-                        st.success(f"Um link de recuperação foi enviado para: {email_input}")
-                        st.info("Verifique sua caixa de entrada e a pasta de spam.")
+        with st.form("login_direto"):
+            st.subheader("Login")
+            u = st.text_input("Usuário").lower().strip()
+            s = st.text_input("Senha", type="password")
+            manter = st.checkbox("Mantenha-me conectado")
+            
+            if st.form_submit_button("Entrar no Sistema", use_container_width=True):
+                if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
+                    st.session_state.autenticado = True
+                    st.session_state.perfil = u
+                    st.session_state.permanente = manter
+                    st.rerun()
                 else:
-                    st.error("E-mail não encontrado na base de dados.")
-
+                    st.error("Usuário ou senha incorretos.")
 else:
     # --- 5. FUNÇÕES DE ARTE (NÃO MEXER) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"; TEMPLATE_FEED = "template_feed.png"; TEMPLATE_STORIE = "template_storie.png"; HEADERS = {"User-Agent": "Mozilla/5.0"}

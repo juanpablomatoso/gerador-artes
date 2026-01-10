@@ -206,8 +206,9 @@ def normalizar_url(base: str, candidate: str) -> str:
     return urljoin(base, candidate)
 
 def encontrar_primeira_imagem_util(base_url: str, soup: BeautifulSoup) -> str:
-    candidatos = []
     corpo = soup.find(class_="post-body") or soup.find("article") or soup
+
+    candidatos = []
 
     for img in corpo.find_all("img"):
         src = (img.get("src") or "").strip()
@@ -220,16 +221,41 @@ def encontrar_primeira_imagem_util(base_url: str, soup: BeautifulSoup) -> str:
         full = normalizar_url(base_url, pick)
         low = full.lower()
 
-        if "logo" in low or "icon" in low or "sprite" in low:
+        # descarta lixo comum
+        if any(x in low for x in ["logo", "icon", "sprite", "ads", "doubleclick", "pixel"]):
             continue
 
-        if not re.search(r"\.(jpg|jpeg|png|webp)(\?|$)", low):
-            candidatos.append(full)
-            continue
+        # tenta avaliar tamanho (quando disponível)
+        try:
+            w = int(img.get("width")) if img.get("width") else 0
+            h = int(img.get("height")) if img.get("height") else 0
+            area = w * h
+        except Exception:
+            area = 0
 
-        return full
+        score = 0
 
-    return candidatos[0] if candidatos else ""
+        # extensão conhecida ajuda, mas não é obrigatória
+        if re.search(r"\.(jpg|jpeg|png|webp)(\?|$)", low):
+            score += 3
+
+        # imagem grande tende a ser imagem principal
+        if area >= 200_000:  # ~500x400
+            score += 2
+
+        # classes comuns de imagem destacada
+        classes = " ".join(img.get("class") or [])
+        if any(x in classes for x in ["featured", "attachment", "wp-post-image"]):
+            score += 2
+
+        candidatos.append((score, full))
+
+    if not candidatos:
+        return ""
+
+    # pega a imagem com maior score
+    candidatos.sort(key=lambda x: x[0], reverse=True)
+    return candidatos[0][1]
 
 def garantir_fonte():
     if not os.path.exists(CAMINHO_FONTE):

@@ -157,13 +157,13 @@ init_db()
 # ============================================================
 # 6) HTTP HELPERS (COM TIMEOUT + TRATAMENTO)
 # ============================================================
-@st.cache_resource
-def get_requests_session():
+@st.cache_resource(show_spinner=False)
+def get_requests_session(headers_key: str):
     s = requests.Session()
     s.headers.update(HEADERS)
     return s
 
-SESSION = get_requests_session()
+SESSION = get_requests_session(str(HEADERS))
 
 def safe_get_text(url: str) -> str:
     r = SESSION.get(url, timeout=REQUEST_TIMEOUT)
@@ -602,3 +602,4 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+

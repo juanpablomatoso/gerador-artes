@@ -577,7 +577,7 @@ else:
                         conn.close()
                         st.rerun()
 
-        with tab3:
+with tab3:
     st.markdown(
         '<p class="descricao-aba">Agenda editorial do portal: lembretes, pautas e tarefas do dia.</p>',
         unsafe_allow_html=True,
@@ -626,96 +626,6 @@ else:
                 st.rerun()
             else:
                 st.warning("Informe ao menos o título.")
-
-    st.markdown("---")
-
-    # ===============================
-    # TAREFAS PENDENTES
-    # ===============================
-    st.subheader("⏳ Pendentes")
-
-    conn = get_conn()
-    c = conn.cursor()
-    c.execute(
-        """
-        SELECT id, titulo, descricao, data_ref
-        FROM agenda
-        WHERE status='Pendente'
-        ORDER BY data_ref ASC, id DESC
-        """
-    )
-    pendentes = c.fetchall()
-    conn.close()
-
-    if not pendentes:
-        st.success("Nenhuma tarefa pendente 🎉")
-
-    for ag in pendentes:
-        ag_id, ag_tit, ag_desc, ag_data = ag
-
-        st.markdown(
-            f"""
-            <div class="card-pauta">
-                <small>📅 {datetime.strptime(ag_data, "%Y-%m-%d").strftime("%d/%m/%Y")}</small><br>
-                <b>{ag_tit}</b>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-        if ag_desc:
-            st.markdown(
-                f"<div class='obs-box'>{ag_desc}</div>",
-                unsafe_allow_html=True,
-            )
-
-        col_ok, col_del = st.columns(2)
-
-        if col_ok.button("✅ MARCAR COMO CONCLUÍDA", key=f"done_{ag_id}", use_container_width=True):
-            conn = get_conn()
-            c = conn.cursor()
-            c.execute("UPDATE agenda SET status='Concluído' WHERE id=?", (ag_id,))
-            conn.commit()
-            conn.close()
-            st.rerun()
-
-        if col_del.button("🗑️ REMOVER", key=f"del_ag_{ag_id}", use_container_width=True):
-            conn = get_conn()
-            c = conn.cursor()
-            c.execute("DELETE FROM agenda WHERE id=?", (ag_id,))
-            conn.commit()
-            conn.close()
-            st.rerun()
-
-        st.markdown("---")
-
-    # ===============================
-    # TAREFAS CONCLUÍDAS
-    # ===============================
-    st.subheader("✅ Concluídas")
-
-    conn = get_conn()
-    c = conn.cursor()
-    c.execute(
-        """
-        SELECT titulo, data_ref
-        FROM agenda
-        WHERE status='Concluído'
-        ORDER BY id DESC
-        LIMIT 10
-        """
-    )
-    concluidas = c.fetchall()
-    conn.close()
-
-    if not concluidas:
-        st.info("Nenhuma tarefa concluída ainda.")
-
-    for c_tit, c_data in concluidas:
-        st.markdown(
-            f"✔️ **{c_tit}** <small style='color:#777'>({datetime.strptime(c_data, '%Y-%m-%d').strftime('%d/%m/%Y')})</small>",
-            unsafe_allow_html=True,
-        )
 
     else:
         # ============================================================
@@ -790,6 +700,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

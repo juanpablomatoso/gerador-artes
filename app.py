@@ -582,12 +582,16 @@ else:
                         unsafe_allow_html=True,
                     )
                     if st.button("Remover", key=f"ex_{p[0]}"):
-                        conn = get_conn()
-                        c = conn.cursor()
-                        c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],))
-                        conn.commit()
-                        conn.close()
-                        st.rerun()
+    if st.session_state.get(f"confirm_rm_{p[0]}", False):
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],))
+        conn.commit()
+        conn.close()
+        st.rerun()
+    else:
+        st.session_state[f"confirm_rm_{p[0]}"] = True
+        st.warning("Clique novamente em Remover para confirmar.")
 
         with tab3:
             st.info("A aba AGENDA está mantida como no seu projeto (tabela 'agenda'). Se quiser, posso finalizar a UI dela.")
@@ -665,6 +669,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

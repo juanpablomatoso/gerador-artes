@@ -5,8 +5,9 @@ from PIL import Image, ImageDraw, ImageFont
 import textwrap
 import io
 import os
+from datetime import datetime
 
-# --- 1. CONFIGURAÇÃO DA PÁGINA (Sempre o primeiro comando) ---
+# --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(
     page_title="Destaque Toledo - Hub Profissional",
     layout="wide",
@@ -22,7 +23,7 @@ st.markdown("""
         border-right: 1px solid #30363d;
     }
     
-    /* Cards de Notícias na Lista */
+    /* Botões da Lista de Notícias */
     .stButton>button {
         width: 100%;
         text-align: left !important;
@@ -31,7 +32,7 @@ st.markdown("""
         margin-bottom: 5px;
     }
 
-    /* Título das Páginas */
+    /* Títulos das Páginas */
     .main-title {
         font-size: 2.2rem;
         font-weight: 800;
@@ -136,12 +137,12 @@ def processar_artes_web(url, tipo_saida):
 # --- 4. DEFINIÇÃO DAS PÁGINAS ---
 
 def pagina_dashboard():
-    st.markdown('<div class="welcome-card"><h1>Bem-vindo ao Painel de Controle</h1><p>Selecione uma ferramenta no menu lateral para começar.</p></div>', unsafe_allow_html=True)
+    st.markdown('<div class="welcome-card"><h1>Painel Geral</h1><p>Bem-vindo ao sistema central de gestão de conteúdo.</p></div>', unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3)
-    c1.metric("Notícias Hoje", "12", "+2")
-    c2.metric("Artes Geradas", "145", "Disponível")
-    c3.metric("Status do Site", "Online", "Ping: 24ms")
+    c1.metric("Notícias Disponíveis", "12", "Sincronizado")
+    c2.metric("Artes Geradas", "145", "+12 hoje")
+    c3.metric("Publicidade Ativa", "04", "Campanhas")
 
 def pagina_gerador_artes():
     st.markdown('<div class="main-title">Gerador Automático de Artes</div>', unsafe_allow_html=True)
@@ -150,7 +151,7 @@ def pagina_gerador_artes():
     
     with col_lista:
         st.subheader("📰 Notícias Recentes")
-        if st.button("🔄 Sincronizar"): st.rerun()
+        if st.button("🔄 Sincronizar Agora"): st.rerun()
         
         lista = obter_lista_noticias()
         for item in lista:
@@ -165,48 +166,62 @@ def pagina_gerador_artes():
             c1, c2 = st.columns(2)
             with c1:
                 if st.button("🖼️ GERAR FEED (Quadrado)", use_container_width=True):
-                    img, tit = processar_artes_web(url_ativa, "FEED")
-                    if img:
-                        st.image(img, use_container_width=True)
-                        buf = io.BytesIO()
-                        img.save(buf, format="JPEG")
-                        st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg", "image/jpeg", use_container_width=True)
+                    with st.spinner("Processando..."):
+                        img, tit = processar_artes_web(url_ativa, "FEED")
+                        if img:
+                            st.image(img, use_container_width=True)
+                            buf = io.BytesIO()
+                            img.save(buf, format="JPEG")
+                            st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg", "image/jpeg", use_container_width=True)
             with c2:
                 if st.button("📱 GERAR STORY (Vertical)", use_container_width=True):
-                    img, tit = processar_artes_web(url_ativa, "STORY")
-                    if img:
-                        st.image(img, width=250)
-                        buf = io.BytesIO()
-                        img.save(buf, format="JPEG")
-                        st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg", "image/jpeg", use_container_width=True)
+                    with st.spinner("Processando..."):
+                        img, tit = processar_artes_web(url_ativa, "STORY")
+                        if img:
+                            st.image(img, width=250)
+                            buf = io.BytesIO()
+                            img.save(buf, format="JPEG")
+                            st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg", "image/jpeg", use_container_width=True)
         else:
-            st.info("👈 Selecione uma notícia na lista ao lado para começar o design.")
+            st.info("👈 Escolha uma notícia na lista ao lado para gerar as artes.")
+
+def pagina_agenda():
+    st.markdown('<div class="main-title">📅 Agenda de Postagens</div>', unsafe_allow_html=True)
+    st.write("Organize as postagens do Instagram e Facebook aqui.")
+    
+    with st.expander("➕ Adicionar Nova Tarefa"):
+        t1, t2 = st.columns(2)
+        t1.text_input("Título da Postagem")
+        t2.date_input("Data da Publicação", datetime.now())
+        st.button("Salvar na Agenda")
+    
+    st.info("Recurso de banco de dados para salvar agenda em desenvolvimento.")
 
 def pagina_financeiro():
     st.markdown('<div class="main-title">Controle Financeiro</div>', unsafe_allow_html=True)
-    st.info("Módulo em desenvolvimento. Aqui você poderá gerenciar anúncios e receitas.")
+    st.info("Módulo em desenvolvimento para gestão de Publiposts.")
 
-# --- 5. NAVEGAÇÃO LATERAL (O BOTÃO DO PAINEL) ---
-
+# --- 5. NAVEGAÇÃO LATERAL (MENU PRINCIPAL) ---
 with st.sidebar:
     st.title("🛡️ Sistema Destaque")
     st.divider()
     
-    # Sistema de navegação por Radio (Visual de Botões)
     pagina_selecionada = st.radio(
-        "MENU PRINCIPAL",
-        ["🏠 Início / Dashboard", "📸 Gerador de Artes", "💰 Financeiro / Publi"],
+        "NAVEGAÇÃO",
+        ["🏠 Dashboard", "📸 Gerador de Artes", "📅 Agenda Social", "💰 Financeiro"],
         index=0
     )
     
-    st.v_spacer(size=10)
-    st.sidebar.markdown("---")
-    st.caption("Versão 2.0.1 - 2024")
+    st.markdown("<br><br>", unsafe_allow_html=True)
+    st.divider()
+    st.caption(f"Destaque Toledo v2.0 | {datetime.now().year}")
 
-# --- 6. ROTEAMENTO DE PÁGINAS ---
-if pagina_selecionada == "🏠 Início / Dashboard":
+# --- 6. ROTEAMENTO ---
+if pagina_selecionada == "🏠 Dashboard":
     pagina_dashboard()
 elif pagina_selecionada == "📸 Gerador de Artes":
     pagina_gerador_artes()
-elif pagina_selecionada == "💰 Financeiro / Publi":
+elif pagina_selecionada == "📅 Agenda Social":
+    pagina_agenda()
+elif pagina_selecionada == "💰 Financeiro":
     pagina_financeiro()

@@ -11,7 +11,7 @@ from datetime import datetime
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="📸")
 
-# --- 2. ESTILIZAÇÃO CSS ---
+# --- 2. ESTILIZAÇÃO CSS (CORES PARA JUAN E BRAYAN) ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
@@ -60,14 +60,13 @@ if not st.session_state.autenticado:
                     st.session_state.autenticado = True; st.session_state.perfil = u; st.rerun()
                 else: st.error("Erro de acesso")
 else:
-    # --- 5. CONFIGURAÇÕES E FUNÇÃO DE ARTE ORIGINAL (RESTAURADA DO SEU ARQUIVO) ---
+    # --- 5. FUNÇÕES DE ARTE (RESTAURADAS ORIGINAIS - NÃO MEXER) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"
     TEMPLATE_FEED = "template_feed.png"
     TEMPLATE_STORIE = "template_storie.png"
     HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
     def processar_imagem_web(url, tipo_arte):
-        # BUSCA DA MATÉRIA
         res_m = requests.get(url, headers=HEADERS).text
         soup_m = BeautifulSoup(res_m, "html.parser")
         titulo = soup_m.find("h1").get_text(strip=True)
@@ -80,7 +79,6 @@ else:
         prop_o = larg_o / alt_o
 
         if tipo_arte == "FEED":
-            # Sua lógica original de Feed
             TAM_F = 1000
             if prop_o > 1.0:
                 nova_alt = TAM_F
@@ -115,8 +113,7 @@ else:
                 y_texto += tamanho_fonte + 4
             return img_final.convert("RGB")
 
-        else:
-            # Sua lógica original de Story
+        else: # STORY
             LARG_S, ALT_S = 940, 541
             img_s_redim = img_original.resize((LARG_S, ALT_S), Image.LANCZOS)
             canvas = Image.new("RGBA", (1080, 1920), (0, 0, 0, 255))
@@ -144,37 +141,35 @@ else:
         except: return []
 
     # --- 6. INTERFACE ---
-    st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel Integrado: {st.session_state.perfil.capitalize()}</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Usuário: {st.session_state.perfil.capitalize()}</p></div>', unsafe_allow_html=True)
 
     if st.session_state.perfil == "juan":
         aba1, aba2, aba3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 ENVIAR AO BRAYAN", "📅 AGENDA"])
         
         with aba1:
-            c_list, c_work = st.columns([1, 2])
-            with c_list:
+            c_l, c_w = st.columns([1, 2])
+            with c_l:
                 st.subheader("📰 Notícias")
                 lista = obter_noticias_site()
                 for i, n in enumerate(lista):
-                    if st.button(n['titulo'], key=f"noticia_{i}"):
-                        st.session_state.url_ativa = n['url']
-            with c_work:
-                url = st.text_input("Link da matéria:", value=st.session_state.get('url_ativa', ''))
+                    if st.button(n['titulo'], key=f"noticia_{i}"): st.session_state.url_ativa = n['url']
+            with c_w:
+                url = st.text_input("Link:", value=st.session_state.get('url_ativa', ''))
                 if url:
                     col_a, col_b = st.columns(2)
-                    if col_a.button("🖼️ GERAR FEED (QUADRADO)"):
+                    if col_a.button("🖼️ GERAR FEED"):
                         res = processar_imagem_web(url, "FEED")
-                        if res: st.image(res); buf=io.BytesIO(); res.save(buf,"JPEG"); st.download_button("Baixar Feed", buf, "feed.jpg")
-                    if col_b.button("📱 GERAR STORY (VERTICAL)"):
+                        if res: st.image(res); buf=io.BytesIO(); res.save(buf,"JPEG"); st.download_button("Baixar", buf, "feed.jpg")
+                    if col_b.button("📱 GERAR STORY"):
                         res = processar_imagem_web(url, "STORY")
-                        if res: st.image(res, width=300); buf=io.BytesIO(); res.save(buf,"JPEG"); st.download_button("Baixar Story", buf, "story.jpg")
+                        if res: st.image(res, width=300); buf=io.BytesIO(); res.save(buf,"JPEG"); st.download_button("Baixar", buf, "story.jpg")
 
         with aba2:
-            st.subheader("🚀 Gerenciar Postagens")
+            st.subheader("🚀 Fila do Brayan")
             with st.form("envio"):
-                t = st.text_input("Título da Matéria")
-                l = st.text_input("Link de Referência")
+                t = st.text_input("Título"); l = st.text_input("Link")
                 p = st.select_slider("Prioridade", options=["Programar", "Normal", "URGENTE"], value="Normal")
-                if st.form_submit_button("Mandar para o Brayan"):
+                if st.form_submit_button("Enviar"):
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
                     c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade) VALUES (?,?,'Pendente',?,?)",
                              (t, l, datetime.now().strftime("%H:%M"), p))
@@ -184,9 +179,9 @@ else:
             conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
             c.execute("SELECT * FROM pautas_trabalho ORDER BY id DESC LIMIT 10"); p_list = c.fetchall(); conn.close()
             for p in p_list:
-                p_text = str(p[5]) if p[5] else "Normal"
-                estilo = "card-concluido" if p[3] == "✅ Concluído" else ("card-urgente" if p_text == "URGENTE" else ("card-programar" if p_text == "Programar" else "card-normal"))
-                st.markdown(f"<div class='{estilo}'><b>{p_text}</b> | {p[4]} - {p[1]}<br>Status: {p[3]}</div>", unsafe_allow_html=True)
+                prio = str(p[5]) if p[5] else "Normal"
+                estilo = "card-concluido" if p[3] == "✅ Concluído" else ("card-urgente" if prio == "URGENTE" else ("card-programar" if prio == "Programar" else "card-normal"))
+                st.markdown(f"<div class='{estilo}'><b>{prio}</b> | {p[4]} - {p[1]}<br>Status: {p[3]}</div>", unsafe_allow_html=True)
                 if st.button(f"Remover #{p[0]}", key=f"del_{p[0]}"):
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
 
@@ -201,15 +196,14 @@ else:
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,nt)); conn.commit(); conn.close(); st.toast(f"Salvo {d}")
 
     else: # PAINEL BRAYAN
-        st.subheader("📋 Sua Fila de Trabalho")
+        st.subheader("📋 Suas Matérias")
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
         c.execute("SELECT * FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY CASE WHEN prioridade='URGENTE' THEN 1 WHEN prioridade='Normal' THEN 2 ELSE 3 END"); p_br = c.fetchall(); conn.close()
         for pb in p_br:
             p_val = str(pb[5]) if pb[5] else "Normal"
             cor = "card-urgente" if p_val == "URGENTE" else ("card-programar" if p_val == "Programar" else "card-normal")
             st.markdown(f"<div class='{cor}'><b>{p_val.upper()}</b> - {pb[4]}<br><span style='font-size:1.3rem'>{pb[1]}</span><br><a href='{pb[2]}' target='_blank' class='btn-link'>🔗 ACESSAR MATÉRIA</a></div>", unsafe_allow_html=True)
-            if st.button("JÁ POSTEI NO SITE", key=f"ok_{pb[0]}"):
+            if st.button("JÁ POSTEI", key=f"ok_{pb[0]}"):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(pb[0],)); conn.commit(); conn.close(); st.rerun()
 
-    if st.sidebar.button("Sair do Sistema"):
-        st.session_state.autenticado = False; st.rerun()
+    if st.sidebar.button("Sair"): st.session_state.autenticado = False; st.rerun()

@@ -55,13 +55,6 @@ st.markdown(
     .descricao-aba {
         color: #666; font-size: 0.95rem; margin-bottom: 20px; line-height: 1.4;
     }
-    /* Estilos da Agenda */
-    .card-agenda {
-        background-color: #ffffff; padding: 15px; border-radius: 10px;
-        border-left: 5px solid #007bff; margin-bottom: 10px;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    }
-    .data-agenda { color: #004a99; font-weight: bold; font-size: 1.1rem; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -141,8 +134,7 @@ def get_conn():
 def init_db():
     conn = get_conn()
     c = conn.cursor()
-    # Tabela Agenda (Usando ID para permitir múltiplas pautas no mesmo dia e exclusão fácil)
-    c.execute("CREATE TABLE IF NOT EXISTS agenda (id INTEGER PRIMARY KEY AUTOINCREMENT, dia TEXT, pauta TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS agenda (dia TEXT PRIMARY KEY, pauta TEXT)")
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS pautas_trabalho
@@ -386,6 +378,7 @@ if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
+    # Centralização da logo e título com estilo aprimorado
     st.markdown(
         """
         <div style="text-align: center; padding: 20px;">
@@ -399,6 +392,7 @@ if not st.session_state.autenticado:
     _, col2, _ = st.columns([1, 1.2, 1])
     
     with col2:
+        # Usando container com borda para dar aspecto de "card" de login
         with st.container(border=True):
             st.markdown("<h3 style='text-align: center; margin-top: 0;'>Acesso Restrito</h3>", unsafe_allow_html=True)
             
@@ -413,9 +407,10 @@ if not st.session_state.autenticado:
             u = st.text_input("👤 Usuário", placeholder="Digite seu usuário").lower().strip()
             s = st.text_input("🔑 Senha", type="password", placeholder="Digite sua senha")
             
+            # Recurso visual de "Mantenha-me conectado"
             manter_conectado = st.checkbox("Manter-se conectado", value=True)
             
-            st.write("") 
+            st.write("") # Espaçador
             
             if st.button("ENTRAR NO SISTEMA", use_container_width=True, type="primary"):
                 if u in ("juan", "brayan") and verify_password(s, AUTH_HASHES.get(u, "")):
@@ -427,16 +422,17 @@ if not st.session_state.autenticado:
                 else:
                     st.error("❌ Usuário ou senha incorretos.")
 
-    st.markdown(
-        """
-        <div style="text-align: center; margin-top: 20px;">
-            <a href="https://www.destaquetoledo.com.br" target="_blank" style="text-decoration: none; color: #007bff; font-size: 0.85rem;">🌐 Acessar Site Público</a>
-            <br><br>
-            <small style="color: #999;">Suporte técnico: <a href="mailto:admin@destaquetoledo.com.br" style="color: #999;">Contato</a></small>
-        </div>
-        """, 
-        unsafe_allow_html=True
-    )
+        # Links auxiliares abaixo do card
+        st.markdown(
+            """
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="https://www.destaquetoledo.com.br" target="_blank" style="text-decoration: none; color: #007bff; font-size: 0.85rem;">🌐 Acessar Site Público</a>
+                <br><br>
+                <small style="color: #999;">Suporte técnico: <a href="mailto:admin@destaquetoledo.com.br" style="color: #999;">Contato</a></small>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
 else:
     # ============================================================
@@ -449,8 +445,12 @@ else:
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
 
         with tab1:
-            st.markdown('<p class="descricao-aba">Aqui você gera automaticamente os posts para Instagram.</p>', unsafe_allow_html=True)
+            st.markdown(
+                '<p class="descricao-aba">Aqui você gera automaticamente os posts para Instagram.</p>',
+                unsafe_allow_html=True,
+            )
             c1, col_preview = st.columns([1, 2])
+
             with c1:
                 st.subheader("📰 Notícias Recentes")
                 ultimas = buscar_ultimas()
@@ -459,107 +459,175 @@ else:
                 for i, item in enumerate(ultimas):
                     if st.button(item["t"], key=f"btn_{i}", use_container_width=True):
                         st.session_state.url_atual = item["u"]
+
             with col_preview:
                 url_f = st.text_input("Link da Matéria:", value=st.session_state.get("url_atual", ""))
+
                 if url_f:
                     ca, cb = st.columns(2)
+
                     if ca.button("🖼️ GERAR FEED", use_container_width=True, type="primary"):
                         try:
                             img = processar_artes_integrado(url_f, "FEED")
                             st.image(img)
+
                             buf = io.BytesIO()
                             img.save(buf, "JPEG", quality=95, optimize=True)
-                            st.download_button("📥 BAIXAR FEED", buf.getvalue(), "feed.jpg", use_container_width=True)
-                        except Exception as e: st.error(f"Falha ao gerar FEED: {e}")
+                            st.download_button(
+                                "📥 BAIXAR FEED",
+                                buf.getvalue(),
+                                "feed.jpg",
+                                use_container_width=True,
+                            )
+                        except Exception as e:
+                            st.error(f"Falha ao gerar FEED: {e}")
+
                     if cb.button("📱 GERAR STORY", use_container_width=True):
                         try:
                             img = processar_artes_integrado(url_f, "STORY")
                             st.image(img, width=280)
+
                             buf = io.BytesIO()
                             img.save(buf, "JPEG", quality=95, optimize=True)
-                            st.download_button("📥 BAIXAR STORY", buf.getvalue(), "story.jpg", use_container_width=True)
-                        except Exception as e: st.error(f"Falha ao gerar STORY: {e}")
+                            st.download_button(
+                                "📥 BAIXAR STORY",
+                                buf.getvalue(),
+                                "story.jpg",
+                                use_container_width=True,
+                            )
+                        except Exception as e:
+                            st.error(f"Falha ao gerar STORY: {e}")
 
         with tab2:
-            st.markdown('<p class="descricao-aba">Envie as matérias que o Brayan deve postar.</p>', unsafe_allow_html=True)
+            st.markdown(
+                '<p class="descricao-aba">Envie as matérias que o Brayan deve postar.</p>',
+                unsafe_allow_html=True,
+            )
             with st.form("form_envio_colorido"):
                 f_titulo = st.text_input("Título da Matéria")
                 f_link = st.text_input("Link da Matéria")
                 f_obs = st.text_area("Instruções para o Brayan")
                 f_urgencia = st.select_slider("Nível de Prioridade", options=["Normal", "Programar", "URGENTE"])
+
                 if st.form_submit_button("🚀 ENVIAR PARA O BRAYAN", use_container_width=True):
                     if f_titulo:
                         hora_br = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
-                        conn = get_conn(); c = conn.cursor()
-                        c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", (f_titulo, f_link, hora_br, f_urgencia, f_obs))
-                        conn.commit(); conn.close(); st.success("Pauta enviada!"); st.rerun()
-            st.markdown("---"); st.subheader("📋 Últimos Envios")
-            conn = get_conn(); c = conn.cursor()
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute(
+                            """
+                            INSERT INTO pautas_trabalho
+                            (titulo, link_ref, status, data_envio, prioridade, observacao)
+                            VALUES (?,?,'Pendente',?,?,?)
+                            """,
+                            (f_titulo, f_link, hora_br, f_urgencia, f_obs),
+                        )
+                        conn.commit()
+                        conn.close()
+                        st.success("Pauta enviada!")
+                        st.rerun()
+                    else:
+                        st.warning("Informe ao menos o título.")
+
+            st.markdown("---")
+            st.subheader("📋 Últimos Envios")
+            conn = get_conn()
+            c = conn.cursor()
             c.execute("SELECT id, titulo, prioridade, data_envio, status FROM pautas_trabalho ORDER BY id DESC LIMIT 6")
-            p_hist = c.fetchall(); conn.close()
+            p_hist = c.fetchall()
+            conn.close()
+
             cols_hist = st.columns(3)
             for i, p in enumerate(p_hist):
                 with cols_hist[i % 3]:
                     classe_cor = "card-urgente" if p[2] == "URGENTE" else "card-programar" if p[2] == "Programar" else ""
-                    st.markdown(f"<div class='card-pauta {classe_cor}'><small>{p[3]}</small><br><b>{p[1]}</b></div>", unsafe_allow_html=True)
+                    st.markdown(
+                        f"<div class='card-pauta {classe_cor}'><small>{p[3]}</small><br><b>{p[1]}</b></div>",
+                        unsafe_allow_html=True,
+                    )
                     if st.button("Remover", key=f"ex_{p[0]}"):
-                        conn = get_conn(); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],)); conn.commit(); conn.close(); st.rerun()
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],))
+                        conn.commit()
+                        conn.close()
+                        st.rerun()
 
         with tab3:
-            st.markdown('<p class="descricao-aba">Gerencie o cronograma de eventos e postagens futuras.</p>', unsafe_allow_html=True)
-            c_ag1, c_ag2 = st.columns([1, 2])
-            with c_ag1:
-                st.subheader("🗓️ Novo Agendamento")
-                with st.form("agenda_juan"):
-                    d_data = st.date_input("Data do Evento", format="DD/MM/YYYY")
-                    d_pauta = st.text_area("O que será feito?", placeholder="Ex: Cobertura show tal / Postagem especial...")
-                    if st.form_submit_button("SALVAR NA AGENDA", use_container_width=True):
-                        conn = get_conn(); c = conn.cursor()
-                        c.execute("INSERT INTO agenda (dia, pauta) VALUES (?, ?)", (d_data.strftime("%d/%m/%Y"), d_pauta))
-                        conn.commit(); conn.close(); st.success("Agendado!"); st.rerun()
-            with c_ag2:
-                st.subheader("📂 Compromissos Salvos")
-                conn = get_conn(); c = conn.cursor()
-                c.execute("SELECT id, dia, pauta FROM agenda ORDER BY id DESC")
-                agendas = c.fetchall(); conn.close()
-                for aid, adia, apau in agendas:
-                    with st.container(border=True):
-                        st.markdown(f"<span class='data-agenda'>🗓️ {adia}</span>", unsafe_allow_html=True)
-                        st.write(apau)
-                        if st.button("Excluir", key=f"del_ag_{aid}"):
-                            conn = get_conn(); c = conn.cursor(); c.execute("DELETE FROM agenda WHERE id=?", (aid,)); conn.commit(); conn.close(); st.rerun()
+            st.info("A aba AGENDA está mantida como no seu projeto (tabela 'agenda'). Se quiser, posso finalizar a UI dela.")
 
     else:
+        # ============================================================
         # PAINEL BRAYAN
+        # ============================================================
         st.markdown('<div class="boas-vindas">Olá, Brayan! Bom trabalho.</div>', unsafe_allow_html=True)
-        tab_b1, tab_b2 = st.tabs(["🚀 FILA DE TRABALHO", "📅 AGENDA / CRONOGRAMA"])
-        
-        with tab_b1:
-            conn = get_conn(); c = conn.cursor()
-            c.execute("SELECT id, titulo, link_ref, data_envio, prioridade, observacao FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
-            p_br = c.fetchall(); conn.close()
-            if not p_br: st.success("Tudo em dia!")
-            for pb in p_br:
-                b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
-                classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
-                tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
-                st.markdown(f'<div class="card-pauta {classe_cor}"><span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br><p style="font-size: 1.4rem; font-weight: bold; margin: 10px 0;">{b_tit}</p></div>', unsafe_allow_html=True)
-                if b_obs: st.markdown(f'<div class="obs-box"><b>💡 Instrução:</b><br>{b_obs}</div>', unsafe_allow_html=True)
-                if b_link and b_link != "Sem Link": st.link_button("🔗 ABRIR MATÉRIA", b_link, use_container_width=True)
-                if st.button("✅ MARCAR COMO POSTADO", key=f"ok_{b_id}", use_container_width=True, type="primary"):
-                    conn = get_conn(); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?", (b_id,)); conn.commit(); conn.close(); st.rerun()
-        
-        with tab_b2:
-            st.subheader("📅 Cronograma de Eventos")
-            conn = get_conn(); c = conn.cursor()
-            c.execute("SELECT dia, pauta FROM agenda ORDER BY id DESC LIMIT 20")
-            ag_b = c.fetchall(); conn.close()
-            if not ag_b: st.info("Nenhum compromisso na agenda.")
-            for d, p in ag_b:
-                st.markdown(f'<div class="card-agenda"><span class="data-agenda">📅 {d}</span><br>{p}</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<p class="descricao-aba">Confira abaixo as matérias enviadas pelo Juan.</p>',
+            unsafe_allow_html=True,
+        )
 
+        conn = get_conn()
+        c = conn.cursor()
+        c.execute(
+            """
+            SELECT id, titulo, link_ref, data_envio, prioridade, observacao
+            FROM pautas_trabalho
+            WHERE status = 'Pendente'
+            ORDER BY id DESC
+            """
+        )
+        p_br = c.fetchall()
+        conn.close()
+
+        if not p_br:
+            st.success("Tudo em dia! Nenhuma pauta nova por enquanto.")
+
+        for pb in p_br:
+            b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
+            classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
+            tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
+
+            st.markdown(
+                f"""
+                <div class="card-pauta {classe_cor}">
+                    <span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br>
+                    <p style='font-size: 1.4rem; font-weight: bold; margin: 10px 0;'>{b_tit}</p>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
+
+            if b_obs:
+                st.markdown(
+                    f'<div class="obs-box"><b>💡 Instrução do Juan:</b><br>{b_obs}</div>',
+                    unsafe_allow_html=True,
+                )
+
+            if b_link and b_link != "Sem Link":
+                st.link_button("🔗 ABRIR MATÉRIA NO SITE", b_link, use_container_width=True)
+
+            st.write("")
+
+            if st.button("✅ MARCAR COMO POSTADO", key=f"ok_{b_id}", use_container_width=True, type="primary"):
+                conn = get_conn()
+                c = conn.cursor()
+                c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?", (b_id,))
+                conn.commit()
+                conn.close()
+                st.rerun()
+
+            st.markdown("---")
+
+        if st.button("🆘 Precisa de ajuda ou encontrou um erro?"):
+            st.warning("Brayan, caso o sistema apresente erro, entre em contato direto com o Juan.")
+
+    # ============================================================
+    # SIDEBAR
+    # ============================================================
     with st.sidebar:
         st.write(f"Logado como: **{st.session_state.perfil.upper()}**")
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
+

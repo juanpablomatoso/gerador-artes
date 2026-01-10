@@ -1,13 +1,12 @@
 import streamlit as st
 import requests
 from bs4 import BeautifulSoup
-from PIL import Image, ImageDraw, ImageFont
-import textwrap
+from PIL import Image
 import io
 import os
 import sqlite3
 from datetime import datetime, timedelta
-import bcrypt
+import hashlib
 
 # =========================
 # CONFIGURAÇÃO DA PÁGINA
@@ -54,6 +53,9 @@ st.markdown("""
 # =========================
 # BANCO DE DADOS
 # =========================
+def hash_senha(senha):
+    return hashlib.sha256(senha.encode()).hexdigest()
+
 def init_db():
     conn = sqlite3.connect("agenda_destaque.db")
     c = conn.cursor()
@@ -90,8 +92,10 @@ def criar_usuarios_padrao():
     }
 
     for u, s in usuarios.items():
-        hash_senha = bcrypt.hashpw(s.encode(), bcrypt.gensalt()).decode()
-        c.execute("INSERT OR IGNORE INTO usuarios VALUES (?,?)", (u, hash_senha))
+        c.execute(
+            "INSERT OR IGNORE INTO usuarios VALUES (?,?)",
+            (u, hash_senha(s))
+        )
 
     conn.commit()
     conn.close()
@@ -100,7 +104,7 @@ init_db()
 criar_usuarios_padrao()
 
 # =========================
-# LOGIN SEGURO
+# LOGIN
 # =========================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
@@ -112,7 +116,7 @@ def autenticar(usuario, senha):
     dado = c.fetchone()
     conn.close()
 
-    if dado and bcrypt.checkpw(senha.encode(), dado[0].encode()):
+    if dado and dado[0] == hash_senha(senha):
         return True
     return False
 
@@ -133,7 +137,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # =========================
-# FUNÇÕES AUXILIARES
+# FUNÇÕES
 # =========================
 @st.cache_data(ttl=300)
 def buscar_ultimas():
@@ -144,8 +148,8 @@ def buscar_ultimas():
         noticias = []
 
         for a in soup.find_all("a", href=True):
-            href = a["href"]
             texto = a.get_text(strip=True)
+            href = a["href"]
             if ".html" in href and len(texto) > 30:
                 if not href.startswith("http"):
                     href = "https://www.destaquetoledo.com.br" + href
@@ -156,19 +160,6 @@ def buscar_ultimas():
         return noticias[:12]
     except:
         return []
-
-def pegar_imagem(url):
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=10).text
-        soup = BeautifulSoup(res, "html.parser")
-        corpo = soup.find(class_="post-body") or soup
-        for img in corpo.find_all("img"):
-            src = img.get("src")
-            if src and "logo" not in src.lower():
-                return src
-    except:
-        pass
-    return None
 
 # =========================
 # INTERFACE
@@ -187,15 +178,7 @@ if st.session_state.perfil == "juan":
             if st.button(n["t"], use_container_width=True):
                 st.session_state.url_atual = n["u"]
 
-        url = st.text_input("Link da matéria", st.session_state.get("url_atual", ""))
-
-        if url:
-            img_url = pegar_imagem(url)
-            if img_url:
-                st.success("Imagem encontrada com sucesso")
-                st.image(img_url)
-            else:
-                st.warning("Matéria sem imagem válida")
+        st.text_input("Link da matéria", st.session_state.get("url_atual", ""))
 
     with tab2:
         with st.form("envio"):
@@ -239,12 +222,10 @@ else:
 
     for p in pautas:
         pid, tit, link, hora, prio, obs = p
-        classe = "card-urgente" if prio == "URGENTE" else "card-programar" if prio == "Programar" else ""
-        tag = "tag-urgente" if prio == "URGENTE" else "tag-programar" if prio == "Programar" else "tag-normal"
 
         st.markdown(f"""
-        <div class="card-pauta {classe}">
-            <span class="tag-status {tag}">{prio}</span> | 🕒 {hora}
+        <div class="card-pauta">
+            <span class="tag-status">{prio}</span> | 🕒 {hora}
             <h3>{tit}</h3>
         </div>
         """, unsafe_allow_html=True)

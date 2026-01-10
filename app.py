@@ -563,8 +563,53 @@ else:
                         conn.close()
                         st.rerun()
 
+        # =========================
+        # 🔽 ÚNICA ALTERAÇÃO AQUI
+        # =========================
         with tab3:
-            st.info("A aba AGENDA está mantida como no seu projeto (tabela 'agenda'). Se quiser, posso finalizar a UI dela.")
+            st.markdown(
+                '<p class="descricao-aba">Agenda editorial do portal – lembretes e tarefas do dia.</p>',
+                unsafe_allow_html=True,
+            )
+
+            hoje = (datetime.utcnow() - timedelta(hours=3)).strftime("%d/%m/%Y")
+            st.info(f"📅 Agenda – {hoje}")
+
+            with st.form("form_agenda"):
+                a_dia = st.text_input("Data (ex: 15/01/2026)", value=hoje)
+                a_pauta = st.text_area("Lembrete / tarefa")
+
+                if st.form_submit_button("➕ SALVAR NA AGENDA", use_container_width=True):
+                    if a_dia and a_pauta:
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute(
+                            "INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?, ?)",
+                            (a_dia, a_pauta),
+                        )
+                        conn.commit()
+                        conn.close()
+                        st.success("Lembrete salvo.")
+                        st.rerun()
+                    else:
+                        st.warning("Preencha a data e o lembrete.")
+
+            st.markdown("---")
+            st.subheader("📌 Lembretes Cadastrados")
+
+            conn = get_conn()
+            c = conn.cursor()
+            c.execute("SELECT dia, pauta FROM agenda ORDER BY dia DESC")
+            itens = c.fetchall()
+            conn.close()
+
+            if not itens:
+                st.info("Nenhum lembrete cadastrado.")
+            else:
+                for dia, pauta in itens:
+                    st.markdown(f"**{dia}**")
+                    st.markdown(pauta)
+                    st.markdown("---")
 
     else:
         # ============================================================
@@ -639,6 +684,8 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
+
 
 
 

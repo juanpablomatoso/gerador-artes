@@ -567,12 +567,11 @@ with tab3:
                     
                     col_cat, col_status = st.columns(2)
                     f_tipo = col_cat.selectbox("Tipo de Cobertura", ["Geral", "Policial", "Esporte", "Social", "Política", "Evento Externo"])
-                    f_resp = col_status.selectbox("Status", ["Agendado", "Em Cobertura", "Urgente", "Finalizado"])
+                    f_status_agenda = col_status.selectbox("Status", ["Agendado", "Em Cobertura", "Urgente", "Finalizado"])
                     
-                    submit = st.form_submit_button("💾 SALVAR NA AGENDA", use_container_width=True)
-                    if submit:
+                    if st.form_submit_button("💾 SALVAR NA AGENDA", use_container_width=True):
                         if f_evento:
-                            info_completa = f"{f_hora} | {f_tipo} | {f_resp} | {f_evento}"
+                            info_completa = f"{f_hora} | {f_tipo} | {f_status_agenda} | {f_evento}"
                             data_str = f_data.strftime("%d/%m/%Y")
                             
                             conn = get_conn()
@@ -580,10 +579,7 @@ with tab3:
                             c.execute("SELECT pauta FROM agenda WHERE dia=?", (data_str,))
                             existente = c.fetchone()
                             
-                            if existente:
-                                novo_valor = existente[0] + "\n" + info_completa
-                            else:
-                                novo_valor = info_completa
+                            novo_valor = (existente[0] + "\n" + info_completa) if existente else info_completa
                             
                             c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?, ?)", (data_str, novo_valor))
                             conn.commit()
@@ -591,7 +587,7 @@ with tab3:
                             st.success("Evento adicionado!")
                             st.rerun()
                         else:
-                            st.error("Por favor, preencha o título.")
+                            st.error("Preencha o título do evento.")
 
             st.markdown("---")
 
@@ -618,6 +614,7 @@ with tab3:
                                 cor = "#007bff"
                                 if "Urgente" in stat: cor = "#dc3545"
                                 if "Cobertura" in stat: cor = "#28a745"
+                                if "Finalizado" in stat: cor = "#6c757d"
                                 
                                 st.markdown(f"""
                                     <div style="background: white; padding: 15px; border-radius: 10px; border-left: 6px solid {cor}; margin-bottom: 10px; box-shadow: 2px 2px 8px rgba(0,0,0,0.05);">
@@ -632,14 +629,6 @@ with tab3:
                                     </div>
                                 """, unsafe_allow_html=True)
                     st.markdown("<br>", unsafe_allow_html=True)
-            
-            with st.expander("⚙️ Limpeza"):
-                if st.button("🗑️ Zerar Agenda"):
-                    conn = get_conn()
-                    conn.execute("DELETE FROM agenda")
-                    conn.commit()
-                    conn.close()
-                    st.rerun()
 
     else:
         # ============================================================
@@ -714,6 +703,7 @@ with tab3:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

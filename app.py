@@ -37,18 +37,8 @@ st.markdown("""
     .tag-programar { background-color: #ffc107; color: #000; }
     .obs-box {
         background-color: #e7f1ff; padding: 12px; border-radius: 8px;
-        border: 1px dashed #004a99; margin-top: 10px; font-style: italic;
+        border: 1px dashed #004a99; margin-top: 10px; margin-bottom: 15px; font-style: italic;
     }
-    /* CORREÇÃO DO BOTÃO DE LINK */
-    .btn-link {
-        display: block; width: 100%; max-width: 250px; padding: 12px; 
-        background-color: #007bff; color: white !important; 
-        text-decoration: none !important; border-radius: 8px;
-        margin-top: 15px; font-weight: bold; text-align: center;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .btn-link:hover { background-color: #0056b3; }
-    
     .boas-vindas {
         font-size: 1.5rem; font-weight: bold; color: #004a99; margin-bottom: 10px;
     }
@@ -181,18 +171,6 @@ else:
                     if st.button("Remover", key=f"ex_{p[0]}"):
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
 
-        with tab3:
-            st.markdown('<p class="descricao-aba">Organize o que será postado durante a semana.</p>', unsafe_allow_html=True)
-            dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("SELECT * FROM agenda"); p_ag = dict(c.fetchall()); conn.close()
-            cols = st.columns(7)
-            for i, d in enumerate(dias):
-                with cols[i]:
-                    st.markdown(f"<div style='text-align:center; background:#004a99; color:white; border-radius:5px; padding:5px; margin-bottom:5px;'>{d}</div>", unsafe_allow_html=True)
-                    txt = st.text_area(d, value=p_ag.get(d,""), height=250, label_visibility="collapsed")
-                    if txt != p_ag.get(d,""):
-                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,txt)); conn.commit(); conn.close(); st.toast(f"Agenda de {d} salva!")
-
     else: # PAINEL BRAYAN
         st.markdown(f'<div class="boas-vindas">👋 Olá, Brayan! Bom trabalho.</div>', unsafe_allow_html=True)
         st.markdown('<p class="descricao-aba">Confira abaixo as matérias enviadas pelo Juan.</p>', unsafe_allow_html=True)
@@ -209,21 +187,28 @@ else:
             classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
             tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
             
-            # BLOCO DE CONSTRUÇÃO DO CARD (CORRIGIDO PARA NÃO QUEBRAR O LINK)
-            html_card = f"""
+            # INÍCIO DO CARD
+            st.markdown(f"""
                 <div class="card-pauta {classe_cor}">
                     <span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br>
                     <p style='font-size: 1.4rem; font-weight: bold; margin: 10px 0;'>{b_tit}</p>
-                    {f'<div class="obs-box"><b>💡 Instrução do Juan:</b> {b_obs}</div>' if b_obs else ''}
-                    <a href="{b_link}" target="_blank" class="btn-link">🔗 ABRIR MATÉRIA NO SITE</a>
                 </div>
-            """
-            st.markdown(html_card, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
             
-            if st.button("✅ MARCAR COMO POSTADO", key=f"ok_{b_id}", use_container_width=True):
+            # CONTEÚDO DENTRO DA ESTRUTURA DO STREAMLIT PARA NÃO QUEBRAR
+            if b_obs:
+                st.markdown(f'<div class="obs-box"><b>💡 Instrução do Juan:</b><br>{b_obs}</div>', unsafe_allow_html=True)
+            
+            # BOTÃO DE LINK (CORRIGIDO DEFINITIVAMENTE)
+            if b_link and b_link != "Sem Link":
+                st.link_button("🔗 ABRIR MATÉRIA NO SITE", b_link, use_container_width=True)
+            
+            st.write("") # Espaço
+            
+            if st.button("✅ MARCAR COMO POSTADO", key=f"ok_{b_id}", use_container_width=True, type="primary"):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(b_id,)); conn.commit(); conn.close(); st.rerun()
+            st.markdown("---")
 
-        st.markdown("---")
         if st.button("🆘 Precisa de ajuda ou encontrou um erro?"):
             st.warning("⚠️ Brayan, caso o sistema apresente erro, entre em contato direto com o Juan.")
 

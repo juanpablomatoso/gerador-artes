@@ -553,35 +553,85 @@ else:
                         conn.close()
                         st.rerun()
 
-        with tab3:
-            st.markdown('<p class="descricao-aba">Organização semanal de postagens e eventos.</p>', unsafe_allow_html=True)
-            
-            dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-            
-            # Criar colunas para os dias da semana
-            cols_agenda = st.columns(len(dias_semana))
-            
-            for i, dia in enumerate(dias_semana):
-                with cols_agenda[i]:
-                    # 1. Buscar texto salvo no banco de dados
-                    conn = get_conn()
-                    c = conn.cursor()
-                    c.execute("SELECT pauta FROM agenda WHERE dia=?", (dia,))
-                    row = c.fetchone()
-                    valor_atual = row[0] if row else ""
-                    conn.close()
+with tab3:
+            st.markdown('<p class="descricao-aba">📅 <b>Planejamento de Cobertura e Eventos</b></p>', unsafe_allow_html=True)
 
-                    # 2. Área de texto para edição
-                    novo_texto = st.text_area(f"📅 {dia}", value=valor_atual, height=250, key=f"agenda_{dia}")
+            # --- FORMULÁRIO DE CADASTRO ---
+            with st.expander("➕ CADASTRAR NOVO EVENTO/PAUTA", expanded=False):
+                with st.form("novo_evento"):
+                    col_data, col_hora = st.columns(2)
+                    f_data = col_data.date_input("Data do Evento")
+                    f_hora = col_hora.text_input("Horário (ex: 14:30)", placeholder="00:00")
+                    
+                    f_evento = st.text_input("Título do Evento / Matéria")
+                    
+                    col_cat, col_status = st.columns(2)
+                    f_tipo = col_cat.selectbox("Tipo de Cobertura", ["Geral", "Policial", "Esporte", "Social", "Política", "Evento Externo"])
+                    f_resp = col_status.selectbox("Status", ["Agendado", "Em Cobertura", "Urgente", "Cancelado"])
+                    
+                    if st.form_submit_button("💾 SALVAR NA AGENDA"):
+                        if f_evento:
+                            # Vamos usar a tabela 'agenda' mas guardando os dados formatados
+                            # Dica: Para sistemas maiores, o ideal seria criar uma tabela nova, 
+                            # mas vamos adaptar à sua estrutura atual 'dia/pauta'
+                            info_completa = f"{f_hora} | {f_tipo} | {f_resp} | {f_evento}"
+                            data_str = f_data.strftime("%d/%m/%Y")
+                            
+                            conn = get_conn()
+                            c = conn.cursor()
+                            # Aqui concatenamos se já houver algo no dia ou criamos novo
+                            c.execute("SELECT pauta FROM agenda WHERE dia=?", (data_str,))
+                            existente = c.fetchone()
+                            novo_valor = (existente[0] + "\n" + info_completa) if existente else info_completa
+                            
+                            c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?, ?)", (data_str, novo_valor))
+                            conn.commit()
+                            conn.close()
+                            st.success("Evento adicionado!")
+                            st.rerun()
 
-                    # 3. Salvar automaticamente se houver mudança
-                    if novo_texto != valor_atual:
-                        conn = get_conn()
-                        c = conn.cursor()
-                        c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?, ?)", (dia, novo_texto))
-                        conn.commit()
-                        conn.close()
-                        st.toast(f"Salvo: {dia}", icon="💾")
+            st.markdown("---")
+
+            # --- VISUALIZAÇÃO PROFISSIONAL (CARDS) ---
+            st.subheader("🗓️ Próximos Compromissos")
+            
+            conn = get_conn()
+            c = conn.cursor()
+            # Pegamos os últimos 7 dias registrados
+            c.execute("SELECT dia, pauta FROM agenda ORDER BY dia DESC LIMIT 10")
+            eventos_db = c.fetchall()
+            conn.close()
+
+            if not eventos_db:
+                st.info("Nenhum evento agendado.")
+            else:
+                for dia, pauta in eventos_db:
+                    with st.container():
+                        st.markdown(f"#### 📅 {dia}")
+                        linhas = pauta.split("\n")
+                        for linha in linhas:
+                            if "|" in linha:
+                                h, tipo, stat, txt = linha.split("|")
+                                # Cores baseadas no status
+                                cor_status = "#28a745" if "Cobertura" in stat else "#007bff"
+                                if "Urgente" in stat: cor_status = "#dc3545"
+                                
+                                st.markdown(f"""
+                                    <div style="background: white; padding: 15px; border-radius: 10px; border-left: 5px solid {cor_status}; margin-bottom: 10px; box-shadow: 2px 2px 5px rgba(0,0,0,0.05);">
+                                        <span style="color: #666; font-size: 0.8rem;">🕒 {h} </span> | 
+                                        <b style="color: {cor_status};">{tipo.upper()}</b> | 
+                                        <span style="background: {cor_status}; color: white; padding: 2px 8px; border-radius: 5px; font-size: 0.7rem;">{stat}</span>
+                                        <p style="margin: 5px 0 0 0; font-size: 1.1rem; font-weight: 500;">{txt}</p>
+                                    </div>
+                                """, unsafe_allow_html=True)
+                        st.markdown("<br>", unsafe_allow_html=True)
+            
+            if st.button("🗑️ Limpar Agenda (Zerar tudo)"):
+                conn = get_conn()
+                conn.execute("DELETE FROM agenda")
+                conn.commit()
+                conn.close()
+                st.rerun()
 
     else:
         # ============================================================
@@ -656,6 +706,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

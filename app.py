@@ -39,11 +39,16 @@ st.markdown("""
         background-color: #e7f1ff; padding: 12px; border-radius: 8px;
         border: 1px dashed #004a99; margin-top: 10px; font-style: italic;
     }
+    /* CORREÇÃO DO BOTÃO DE LINK */
     .btn-link {
-        display: inline-block; padding: 10px 20px; background-color: #007bff;
-        color: white !important; text-decoration: none; border-radius: 8px;
-        margin-top: 10px; font-weight: bold; text-align: center;
+        display: block; width: 100%; max-width: 250px; padding: 12px; 
+        background-color: #007bff; color: white !important; 
+        text-decoration: none !important; border-radius: 8px;
+        margin-top: 15px; font-weight: bold; text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
+    .btn-link:hover { background-color: #0056b3; }
+    
     .boas-vindas {
         font-size: 1.5rem; font-weight: bold; color: #004a99; margin-bottom: 10px;
     }
@@ -131,7 +136,7 @@ else:
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
         
         with tab1:
-            st.markdown('<p class="descricao-aba">Aqui você gera automaticamente os posts para Instagram. Escolha uma notícia recente à esquerda ou cole o link no campo abaixo para gerar o Feed e os Stories.</p>', unsafe_allow_html=True)
+            st.markdown('<p class="descricao-aba">Aqui você gera automaticamente os posts para Instagram.</p>', unsafe_allow_html=True)
             c1, col_preview = st.columns([1, 2])
             with c1:
                 st.subheader("📰 Notícias Recentes")
@@ -148,12 +153,9 @@ else:
                     if cb.button("📱 GERAR STORY", use_container_width=True):
                         img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=280); buf=io.BytesIO(); img.save(buf,"JPEG")
                         st.download_button("📥 BAIXAR STORY", buf.getvalue(), "story.jpg", use_container_width=True)
-            
-            if st.button("❓ Ajuda desta Aba", key="help_artes"):
-                st.info("Dica: Se a imagem da notícia não carregar, verifique se o link do site Destaque Toledo está correto. O sistema puxa a primeira imagem principal da matéria.")
 
         with tab2:
-            st.markdown('<p class="descricao-aba">Envie as matérias que o Brayan deve postar. Você pode definir a urgência e deixar instruções específicas para cada postagem.</p>', unsafe_allow_html=True)
+            st.markdown('<p class="descricao-aba">Envie as matérias que o Brayan deve postar.</p>', unsafe_allow_html=True)
             with st.form("form_envio_colorido"):
                 f_titulo = st.text_input("Título da Matéria")
                 f_link = st.text_input("Link da Matéria")
@@ -180,7 +182,7 @@ else:
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
 
         with tab3:
-            st.markdown('<p class="descricao-aba">Organize o que será postado durante a semana. O que você escrever aqui fica salvo para consulta rápida.</p>', unsafe_allow_html=True)
+            st.markdown('<p class="descricao-aba">Organize o que será postado durante a semana.</p>', unsafe_allow_html=True)
             dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
             conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("SELECT * FROM agenda"); p_ag = dict(c.fetchall()); conn.close()
             cols = st.columns(7)
@@ -193,7 +195,7 @@ else:
 
     else: # PAINEL BRAYAN
         st.markdown(f'<div class="boas-vindas">👋 Olá, Brayan! Bom trabalho.</div>', unsafe_allow_html=True)
-        st.markdown('<p class="descricao-aba">Confira abaixo as matérias enviadas pelo Juan. Siga as instruções em cada card e clique no botão verde após realizar a postagem.</p>', unsafe_allow_html=True)
+        st.markdown('<p class="descricao-aba">Confira abaixo as matérias enviadas pelo Juan.</p>', unsafe_allow_html=True)
         
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
         c.execute("SELECT id, titulo, link_ref, data_envio, prioridade, observacao FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
@@ -206,20 +208,24 @@ else:
             b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
             classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
             tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
-            st.markdown(f"""
+            
+            # BLOCO DE CONSTRUÇÃO DO CARD (CORRIGIDO PARA NÃO QUEBRAR O LINK)
+            html_card = f"""
                 <div class="card-pauta {classe_cor}">
                     <span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br>
                     <p style='font-size: 1.4rem; font-weight: bold; margin: 10px 0;'>{b_tit}</p>
                     {f'<div class="obs-box"><b>💡 Instrução do Juan:</b> {b_obs}</div>' if b_obs else ''}
-                    <br><a href='{b_link}' target='_blank' class='btn-link'>🔗 ABRIR MATÉRIA</a>
+                    <a href="{b_link}" target="_blank" class="btn-link">🔗 ABRIR MATÉRIA NO SITE</a>
                 </div>
-            """, unsafe_allow_html=True)
-            if st.button("✅ CONCLUÍDO / POSTADO", key=f"ok_{b_id}", use_container_width=True):
+            """
+            st.markdown(html_card, unsafe_allow_html=True)
+            
+            if st.button("✅ MARCAR COMO POSTADO", key=f"ok_{b_id}", use_container_width=True):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(b_id,)); conn.commit(); conn.close(); st.rerun()
 
         st.markdown("---")
         if st.button("🆘 Precisa de ajuda ou encontrou um erro?"):
-            st.warning("⚠️ Brayan, caso o sistema apresente erro ou precise de orientações específicas, entre em contato direto com o **Juan**.")
+            st.warning("⚠️ Brayan, caso o sistema apresente erro, entre em contato direto com o Juan.")
 
     with st.sidebar:
         st.write(f"Logado como: **{st.session_state.perfil.upper()}**")

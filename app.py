@@ -553,82 +553,8 @@ else:
                         conn.close()
                         st.rerun()
 
-with tab3:
-            st.markdown('<p class="descricao-aba">📅 <b>Planejamento de Cobertura e Eventos</b></p>', unsafe_allow_html=True)
-
-            # --- FORMULÁRIO DE CADASTRO ---
-            with st.expander("➕ CADASTRAR NOVO EVENTO OU PAUTA", expanded=False):
-                with st.form("novo_evento"):
-                    col_data, col_hora = st.columns(2)
-                    f_data = col_data.date_input("Data do Evento")
-                    f_hora = col_hora.text_input("Horário (ex: 14:30)", placeholder="00:00")
-                    
-                    f_evento = st.text_input("Título do Evento / Matéria")
-                    
-                    col_cat, col_status = st.columns(2)
-                    f_tipo = col_cat.selectbox("Tipo de Cobertura", ["Geral", "Policial", "Esporte", "Social", "Política", "Evento Externo"])
-                    f_status_agenda = col_status.selectbox("Status", ["Agendado", "Em Cobertura", "Urgente", "Finalizado"])
-                    
-                    if st.form_submit_button("💾 SALVAR NA AGENDA", use_container_width=True):
-                        if f_evento:
-                            info_completa = f"{f_hora} | {f_tipo} | {f_status_agenda} | {f_evento}"
-                            data_str = f_data.strftime("%d/%m/%Y")
-                            
-                            conn = get_conn()
-                            c = conn.cursor()
-                            c.execute("SELECT pauta FROM agenda WHERE dia=?", (data_str,))
-                            existente = c.fetchone()
-                            
-                            novo_valor = (existente[0] + "\n" + info_completa) if existente else info_completa
-                            
-                            c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?, ?)", (data_str, novo_valor))
-                            conn.commit()
-                            conn.close()
-                            st.success("Evento adicionado!")
-                            st.rerun()
-                        else:
-                            st.error("Preencha o título do evento.")
-
-            st.markdown("---")
-
-            # --- VISUALIZAÇÃO DOS CARDS ---
-            st.subheader("🗓️ Próximos Compromissos")
-            
-            conn = get_conn()
-            c = conn.cursor()
-            c.execute("SELECT dia, pauta FROM agenda ORDER BY dia DESC LIMIT 15")
-            eventos_db = c.fetchall()
-            conn.close()
-
-            if not eventos_db:
-                st.info("Nenhum evento agendado.")
-            else:
-                for dia, pauta in eventos_db:
-                    st.markdown(f"#### 📅 {dia}")
-                    linhas = pauta.split("\n")
-                    for linha in linhas:
-                        if "|" in linha:
-                            partes = linha.split("|")
-                            if len(partes) == 4:
-                                h, tipo, stat, txt = partes
-                                cor = "#007bff"
-                                if "Urgente" in stat: cor = "#dc3545"
-                                if "Cobertura" in stat: cor = "#28a745"
-                                if "Finalizado" in stat: cor = "#6c757d"
-                                
-                                st.markdown(f"""
-                                    <div style="background: white; padding: 15px; border-radius: 10px; border-left: 6px solid {cor}; margin-bottom: 10px; box-shadow: 2px 2px 8px rgba(0,0,0,0.05);">
-                                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                                            <span style="color: #666; font-size: 0.85rem;">🕒 <b>{h.strip()}</b></span>
-                                            <span style="background: {cor}; color: white; padding: 2px 10px; border-radius: 15px; font-size: 0.7rem; font-weight: bold;">{stat.strip().upper()}</span>
-                                        </div>
-                                        <div style="margin-top: 8px;">
-                                            <b style="color: {cor}; font-size: 0.8rem;">{tipo.strip().upper()}</b>
-                                            <p style="margin: 5px 0 0 0; font-size: 1.1rem; font-weight: 500; color: #333;">{txt.strip()}</p>
-                                        </div>
-                                    </div>
-                                """, unsafe_allow_html=True)
-                    st.markdown("<br>", unsafe_allow_html=True)
+        with tab3:
+            st.info("A aba AGENDA está mantida como no seu projeto (tabela 'agenda'). Se quiser, posso finalizar a UI dela.")
 
     else:
         # ============================================================
@@ -703,9 +629,5 @@ with tab3:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
-
-
-
-
 
 

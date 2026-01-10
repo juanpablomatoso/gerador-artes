@@ -6,87 +6,58 @@ import textwrap
 import io
 import os
 
-# Configuração da página
-st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="📸")
+# --- 1. CONFIGURAÇÃO DA PÁGINA (Sempre o primeiro comando) ---
+st.set_page_config(
+    page_title="Destaque Toledo - Hub Profissional",
+    layout="wide",
+    page_icon="⚡"
+)
 
-# --- ESTILIZAÇÃO CSS PROFISSIONAL ---
+# --- 2. ESTILO CSS GLOBAL (UI/UX PREMIUM) ---
 st.markdown("""
     <style>
-    /* Fundo geral */
-    .main { background-color: #f4f7f9; }
-    
-    /* Título do Topo Estilizado */
-    .topo-titulo {
-        text-align: center;
-        padding: 30px;
-        background: linear-gradient(90deg, #004a99 0%, #007bff 100%);
-        color: white;
-        border-radius: 0 0 20px 20px;
-        margin-bottom: 30px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    /* Estilização da Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #0e1117;
+        border-right: 1px solid #30363d;
     }
-    .topo-titulo h1 { margin: 0; font-size: 2.5rem; font-weight: 800; letter-spacing: -1px; }
-    .topo-titulo p { margin: 5px 0 0 0; opacity: 0.8; font-size: 1.1rem; }
-
-    /* Botões da Lista (Alinhados à Esquerda) */
+    
+    /* Cards de Notícias na Lista */
     .stButton>button {
         width: 100%;
         text-align: left !important;
-        border-radius: 10px !important;
-        border: 1px solid #dce1e6 !important;
-        background-color: white !important;
-        padding: 15px !important;
-        color: #2c3e50 !important;
-        font-weight: 500 !important;
-        transition: all 0.2s ease;
-        line-height: 1.4;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-    }
-    .stButton>button:hover {
-        border-color: #007bff !important;
-        background-color: #f8fbff !important;
-        transform: scale(1.01);
-        box-shadow: 0 4px 8px rgba(0,0,0,0.05);
+        border-radius: 8px !important;
+        padding: 10px 15px !important;
+        margin-bottom: 5px;
     }
 
-    /* Cores dos Botões de Gerar Arte */
-    /* Coluna 1: FEED (Azul) */
-    div[data-testid="stColumn"]:nth-of-type(1) button {
-        background: #007bff !important;
-        color: white !important;
-        text-align: center !important;
-        font-weight: bold !important;
-        height: 60px !important;
-        border: none !important;
-    }
-    /* Coluna 2: STORY (Roxo) */
-    div[data-testid="stColumn"]:nth-of-type(2) button {
-        background: #6f42c1 !important;
-        color: white !important;
-        text-align: center !important;
-        font-weight: bold !important;
-        height: 60px !important;
-        border: none !important;
-    }
-
-    /* Ajuste de Cards de Instrução */
-    .instrucao-card {
-        background: white;
-        padding: 20px;
-        border-radius: 15px;
-        border-left: 6px solid #007bff;
+    /* Título das Páginas */
+    .main-title {
+        font-size: 2.2rem;
+        font-weight: 800;
+        color: #1E1E1E;
         margin-bottom: 20px;
+        border-left: 8px solid #007bff;
+        padding-left: 15px;
+    }
+
+    /* Banner de Boas Vindas */
+    .welcome-card {
+        background: linear-gradient(135deg, #004a99 0%, #007bff 100%);
+        color: white;
+        padding: 40px;
+        border-radius: 20px;
+        margin-bottom: 30px;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURAÇÕES DE CAMINHOS ---
+# --- 3. CONFIGURAÇÕES TÉCNICAS E FUNÇÕES DE ARTE ---
 CAMINHO_FONTE = "Shoika Bold.ttf"
 TEMPLATE_FEED = "template_feed.png"
 TEMPLATE_STORIE = "template_storie.png"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
-# --- FUNÇÕES CORE ---
 def obter_lista_noticias():
     try:
         url_site = "https://www.destaquetoledo.com.br/"
@@ -100,8 +71,7 @@ def obter_lista_noticias():
                 if len(titulo_limpo) > 15:
                     noticias.append({"titulo": titulo_limpo, "url": href})
         return noticias[:12]
-    except:
-        return []
+    except: return []
 
 def processar_artes_web(url, tipo_saida):
     try:
@@ -140,7 +110,6 @@ def processar_artes_web(url, tipo_saida):
                 draw.text((488 - (draw.textbbox((0,0), l, font=fnt)[2]//2), y), l, fill="black", font=fnt)
                 y += tam + 4
             return img_f.convert("RGB"), titulo
-
         else: # STORY
             L_S, A_S = 940, 541
             ratio = L_S / A_S
@@ -162,62 +131,82 @@ def processar_artes_web(url, tipo_saida):
                 draw.text((69, y), l, fill="white", font=fnt)
                 y += tam + 12
             return canvas.convert("RGB"), titulo
-    except:
-        return None, None
+    except: return None, None
 
-# --- TÍTULO NO TOPO (HTML CUSTOM) ---
-st.markdown("""
-    <div class="topo-titulo">
-        <h1>DESTAQUE TOLEDO</h1>
-        <p>Painel Inteligente de Geração de Conteúdo</p>
-    </div>
-    """, unsafe_allow_html=True)
+# --- 4. DEFINIÇÃO DAS PÁGINAS ---
 
-# --- CONTEÚDO PRINCIPAL ---
-col_lista, col_trabalho = st.columns([1, 1.8])
-
-with col_lista:
-    st.markdown("### 📰 Notícias Recentes")
-    if st.button("🔄 Sincronizar Agora"):
-        st.rerun()
+def pagina_dashboard():
+    st.markdown('<div class="welcome-card"><h1>Bem-vindo ao Painel de Controle</h1><p>Selecione uma ferramenta no menu lateral para começar.</p></div>', unsafe_allow_html=True)
     
-    st.write("") # Espaçador
-    lista = obter_lista_noticias()
-    for item in lista:
-        if st.button(item['titulo'], key=item['url']):
-            st.session_state.url_ativa = item['url']
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Notícias Hoje", "12", "+2")
+    c2.metric("Artes Geradas", "145", "Disponível")
+    c3.metric("Status do Site", "Online", "Ping: 24ms")
 
-with col_trabalho:
-    url_ativa = st.text_input("📍 Notícia em foco:", value=st.session_state.get('url_ativa', ''))
+def pagina_gerador_artes():
+    st.markdown('<div class="main-title">Gerador Automático de Artes</div>', unsafe_allow_html=True)
     
-    if url_ativa:
-        st.markdown("<br>", unsafe_allow_html=True)
-        c1, c2 = st.columns(2)
+    col_lista, col_trabalho = st.columns([1, 1.8])
+    
+    with col_lista:
+        st.subheader("📰 Notícias Recentes")
+        if st.button("🔄 Sincronizar"): st.rerun()
         
-        with c1:
-            if st.button("🖼️ GERAR PARA FEED"):
-                with st.spinner("Criando arte quadrada..."):
+        lista = obter_lista_noticias()
+        for item in lista:
+            if st.button(item['titulo'], key=f"btn_{item['url']}"):
+                st.session_state.url_ativa = item['url']
+
+    with col_trabalho:
+        url_ativa = st.text_input("📍 Link da Notícia Selecionada:", value=st.session_state.get('url_ativa', ''))
+        
+        if url_ativa:
+            st.divider()
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("🖼️ GERAR FEED (Quadrado)", use_container_width=True):
                     img, tit = processar_artes_web(url_ativa, "FEED")
                     if img:
                         st.image(img, use_container_width=True)
                         buf = io.BytesIO()
-                        img.save(buf, format="JPEG", quality=95)
-                        st.download_button("📥 Baixar Imagem Feed", buf.getvalue(), f"feed_destaque.jpg", "image/jpeg")
-
-        with c2:
-            if st.button("📱 GERAR PARA STORY"):
-                with st.spinner("Criando arte vertical..."):
+                        img.save(buf, format="JPEG")
+                        st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg", "image/jpeg", use_container_width=True)
+            with c2:
+                if st.button("📱 GERAR STORY (Vertical)", use_container_width=True):
                     img, tit = processar_artes_web(url_ativa, "STORY")
                     if img:
-                        st.image(img, width=280)
+                        st.image(img, width=250)
                         buf = io.BytesIO()
-                        img.save(buf, format="JPEG", quality=95)
-                        st.download_button("📥 Baixar Imagem Story", buf.getvalue(), f"story_destaque.jpg", "image/jpeg")
-    else:
-        st.markdown("""
-            <div class="instrucao-card">
-                <h4>Bem-vindo!</h4>
-                <p>Para começar, escolha uma notícia na lista ao lado.</p>
-                <small>O sistema buscará automaticamente o título e a imagem da matéria.</small>
-            </div>
-        """, unsafe_allow_html=True)
+                        img.save(buf, format="JPEG")
+                        st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg", "image/jpeg", use_container_width=True)
+        else:
+            st.info("👈 Selecione uma notícia na lista ao lado para começar o design.")
+
+def pagina_financeiro():
+    st.markdown('<div class="main-title">Controle Financeiro</div>', unsafe_allow_html=True)
+    st.info("Módulo em desenvolvimento. Aqui você poderá gerenciar anúncios e receitas.")
+
+# --- 5. NAVEGAÇÃO LATERAL (O BOTÃO DO PAINEL) ---
+
+with st.sidebar:
+    st.title("🛡️ Sistema Destaque")
+    st.divider()
+    
+    # Sistema de navegação por Radio (Visual de Botões)
+    pagina_selecionada = st.radio(
+        "MENU PRINCIPAL",
+        ["🏠 Início / Dashboard", "📸 Gerador de Artes", "💰 Financeiro / Publi"],
+        index=0
+    )
+    
+    st.v_spacer(size=10)
+    st.sidebar.markdown("---")
+    st.caption("Versão 2.0.1 - 2024")
+
+# --- 6. ROTEAMENTO DE PÁGINAS ---
+if pagina_selecionada == "🏠 Início / Dashboard":
+    pagina_dashboard()
+elif pagina_selecionada == "📸 Gerador de Artes":
+    pagina_gerador_artes()
+elif pagina_selecionada == "💰 Financeiro / Publi":
+    pagina_financeiro()

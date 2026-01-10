@@ -81,14 +81,6 @@ REQUEST_TIMEOUT = int(os.getenv("DT_REQUEST_TIMEOUT", "12"))
 
 # ============================================================
 # 4) SEGURANÇA: SENHAS (SEM HARDCODE)
-#    Preferência:
-#      A) st.secrets["AUTH"] no Streamlit Cloud / secrets.toml
-#      B) variáveis de ambiente DT_AUTH_JUAN / DT_AUTH_BRAYAN
-#
-#    Formato da senha armazenada: "pbkdf2_sha256$iterations$salt_hex$hash_hex"
-#
-#    Para gerar, você pode usar a função abaixo (rode localmente no Python):
-#      print(make_password_hash("sua_senha"))
 # ============================================================
 
 def make_password_hash(password: str, iterations: int = 200_000) -> str:
@@ -114,7 +106,6 @@ def verify_password(password: str, stored: str) -> bool:
         return False
 
 def load_auth_hashes():
-    # 1) tenta secrets
     auth = {}
     try:
         if "AUTH" in st.secrets:
@@ -122,18 +113,12 @@ def load_auth_hashes():
     except Exception:
         auth = {}
 
-    # 2) fallback env vars
     juan_hash = auth.get("juan") or os.getenv("DT_AUTH_JUAN", "").strip()
     brayan_hash = auth.get("brayan") or os.getenv("DT_AUTH_BRAYAN", "").strip()
 
-    return {
-        "juan": juan_hash,
-        "brayan": brayan_hash,
-    }
+    return {"juan": juan_hash, "brayan": brayan_hash}
 
 AUTH_HASHES = load_auth_hashes()
-
-# Se o usuário não configurou as hashes, o sistema não autentica.
 AUTH_CONFIG_OK = bool(AUTH_HASHES.get("juan")) and bool(AUTH_HASHES.get("brayan"))
 
 # ============================================================
@@ -172,18 +157,17 @@ init_db()
 # ============================================================
 # 6) HTTP HELPERS (COM TIMEOUT + TRATAMENTO)
 # ============================================================
-@st.cache_resource(show_spinner=False)
-def get_requests_session(headers_key: str):
+@st.cache_resource
+def get_requests_session():
     s = requests.Session()
     s.headers.update(HEADERS)
     return s
 
-SESSION = get_requests_session(str(HEADERS))
+SESSION = get_requests_session()
 
 def safe_get_text(url: str) -> str:
     r = SESSION.get(url, timeout=REQUEST_TIMEOUT)
     r.raise_for_status()
-    # tenta respeitar encoding do servidor
     if r.encoding is None:
         r.encoding = "utf-8"
     return r.text
@@ -202,7 +186,6 @@ def extrair_titulo(soup: BeautifulSoup) -> str:
         t = h1.get_text(" ", strip=True)
         if t:
             return t
-    # fallback: title do HTML
     if soup.title and soup.title.get_text(strip=True):
         return soup.title.get_text(strip=True)
     return "Sem título"
@@ -213,7 +196,6 @@ def normalizar_url(base: str, candidate: str) -> str:
     return urljoin(base, candidate)
 
 def encontrar_primeira_imagem_util(base_url: str, soup: BeautifulSoup) -> str:
-    # tenta priorizar área de conteúdo
     candidatos = []
     corpo = soup.find(class_="post-body") or soup.find("article") or soup
 
@@ -226,20 +208,17 @@ def encontrar_primeira_imagem_util(base_url: str, soup: BeautifulSoup) -> str:
             continue
 
         full = normalizar_url(base_url, pick)
-
         low = full.lower()
-        # filtros simples
+
         if "logo" in low or "icon" in low or "sprite" in low:
             continue
+
         if not re.search(r"\.(jpg|jpeg|png|webp)(\?|$)", low):
-            # às vezes o site serve sem extensão; mantém como candidato, mas com menor prioridade
             candidatos.append(full)
             continue
 
-        # imagem com extensão tem prioridade
         return full
 
-    # se não achou com extensão, tenta o primeiro candidato que sobrou
     return candidatos[0] if candidatos else ""
 
 def garantir_fonte():
@@ -270,12 +249,12 @@ def processar_artes_integrado(url: str, tipo_solicitado: str) -> Image.Image:
     larg_o, alt_o = img_original.size
     if alt_o == 0:
         raise ValueError("Imagem inválida (altura zero).")
+
     prop_o = larg_o / alt_o
 
     if tipo_solicitado == "FEED":
         TAMANHO_FEED = 1000
 
-        # Ajuste/crop para 1000x1000 preservando centro
         if prop_o > 1.0:
             n_alt = TAMANHO_FEED
             n_larg = int(n_alt * prop_o)
@@ -294,11 +273,9 @@ def processar_artes_integrado(url: str, tipo_solicitado: str) -> Image.Image:
 
         draw = ImageDraw.Draw(fundo)
 
-        # Ajuste de fonte para caber no bloco (mesma lógica, com proteções)
         tam = 85
         while tam > 20:
             fonte = ImageFont.truetype(CAMINHO_FONTE, tam)
-            # getlength pode variar; mantém seu cálculo base
             try:
                 limite = int(662 / (fonte.getlength("W") * 0.55))
             except Exception:
@@ -350,6 +327,7 @@ def processar_artes_integrado(url: str, tipo_solicitado: str) -> Image.Image:
             limite_s = int(912 / (fonte_s.getlength("W") * 0.55))
         except Exception:
             limite_s = 34
+
         linhas_s = textwrap.wrap(titulo, width=max(10, limite_s))
         alt_bloco_s = (len(linhas_s) * tam_s) + (len(linhas_s) * 10)
         if alt_bloco_s <= 300 and len(linhas_s) <= 4:
@@ -374,21 +352,13 @@ def buscar_ultimas():
         soup = BeautifulSoup(html, "html.parser")
 
         news = []
-for article in soup.find_all("article"):
-    a = article.find("a", href=True)
-    if not a:
-        continue
+        for a in soup.find_all("a", href=True):
+            href = (a.get("href") or "").strip()
+            if ".html" in href and "/20" in href:
+                t = a.get_text(strip=True)
+                if t and len(t) > 25:
+                    news.append({"t": t, "u": urljoin(base, href)})
 
-    href = a["href"].strip()
-    titulo = a.get_text(" ", strip=True)
-
-    if titulo and len(titulo) > 25:
-        news.append({
-            "t": titulo,
-            "u": urljoin(base, href)
-        })
-
-        # remove duplicados por URL
         seen = set()
         out = []
         for item in news:
@@ -632,6 +602,3 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
-
-
-

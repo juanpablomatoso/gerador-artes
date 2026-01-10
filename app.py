@@ -374,13 +374,20 @@ def buscar_ultimas():
         soup = BeautifulSoup(html, "html.parser")
 
         news = []
-        for a in soup.find_all("a", href=True):
-            href = (a.get("href") or "").strip()
-            # mantém seu critério, mas com urljoin
-            if ".html" in href and "/20" in href:
-                t = a.get_text(strip=True)
-                if t and len(t) > 25:
-                    news.append({"t": t, "u": urljoin(base, href)})
+for article in soup.find_all("article"):
+    a = article.find("a", href=True)
+    if not a:
+        continue
+
+    href = a["href"].strip()
+    titulo = a.get_text(" ", strip=True)
+
+    if titulo and len(titulo) > 25:
+        news.append({
+            "t": titulo,
+            "u": urljoin(base, href)
+        })
+
 
         # remove duplicados por URL
         seen = set()
@@ -626,4 +633,5 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 

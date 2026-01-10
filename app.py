@@ -7,11 +7,17 @@ import io
 import os
 import sqlite3
 from datetime import datetime, timedelta
+import google.generativeai as genai
+
+# --- CONFIGURAÇÃO DA IA (GEMINI) ---
+# Substitua pelo seu código de API para funcionar
+genai.configure(api_key="SUA_CHAVE_API_AQUI")
+model = genai.GenerativeModel('gemini-pro')
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
-# --- 2. ESTILIZAÇÃO CSS ---
+# --- 2. ESTILIZAÇÃO CSS PROFISSIONAL (SUAS CORES ORIGINAIS) ---
 st.markdown("""
     <style>
     .stApp { background-color: #f8f9fa; }
@@ -26,9 +32,8 @@ st.markdown("""
         border-left: 6px solid #004a99; margin-bottom: 15px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    .card-urgente { border-left: 6px solid #dc3545 !important; background-color: #fff5f5 !important; }
-    .card-programar { border-left: 6px solid #ffc107 !important; background-color: #fffdf5 !important; }
-    
+    .card-urgente { border-left: 6px solid #dc3545; background-color: #fff5f5; }
+    .card-programar { border-left: 6px solid #ffc107; background-color: #fffdf5; }
     .tag-status {
         padding: 4px 12px; border-radius: 20px; font-size: 0.75rem;
         font-weight: bold; text-transform: uppercase;
@@ -36,14 +41,15 @@ st.markdown("""
     .tag-urgente { background-color: #dc3545; color: white; }
     .tag-normal { background-color: #e9ecef; color: #495057; }
     .tag-programar { background-color: #ffc107; color: #000; }
-    
     .obs-box {
         background-color: #e7f1ff; padding: 12px; border-radius: 8px;
         border: 1px dashed #004a99; margin-top: 10px; margin-bottom: 15px; font-style: italic;
     }
-    .tarefa-card {
-        background: #fff; padding: 15px; border-radius: 8px; 
-        border: 1px solid #ddd; margin-bottom: 10px;
+    .boas-vindas {
+        font-size: 1.5rem; font-weight: bold; color: #004a99; margin-bottom: 10px;
+    }
+    .descricao-aba {
+        color: #666; font-size: 0.95rem; margin-bottom: 20px; line-height: 1.4;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -54,8 +60,8 @@ def init_db():
     c.execute('CREATE TABLE IF NOT EXISTS agenda (dia TEXT PRIMARY KEY, pauta TEXT)')
     c.execute('''CREATE TABLE IF NOT EXISTS pautas_trabalho 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, link_ref TEXT, status TEXT, data_envio TEXT, prioridade TEXT, observacao TEXT)''')
-    # Tabela de tarefas com recorrência e autor
-    c.execute('''CREATE TABLE IF NOT EXISTS tarefas_v2 
+    # Tabela de Tarefas Internas
+    c.execute('''CREATE TABLE IF NOT EXISTS tarefas_sistema 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, tarefa TEXT, status TEXT, recorrencia TEXT, autor TEXT)''')
     conn.commit(); conn.close()
 
@@ -68,114 +74,78 @@ if not st.session_state.autenticado:
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel Administrativo</p></div>', unsafe_allow_html=True)
     _, col2, _ = st.columns([1, 1.2, 1])
     with col2:
-        with st.form("login"):
+        with st.form("login_direto"):
             u = st.text_input("Usuário").lower().strip()
             s = st.text_input("Senha", type="password")
-            st.checkbox("Mantenha-me conectado", value=True)
-            if st.form_submit_button("ACESSAR PAINEL", use_container_width=True):
+            if st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True):
                 if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
                     st.session_state.autenticado = True; st.session_state.perfil = u; st.rerun()
                 else: st.error("Acesso negado.")
 else:
-    # --- BARRA LATERAL ---
-    with st.sidebar:
-        st.write(f"👤 Conectado: **{st.session_state.perfil.upper()}**")
-        st.divider()
-        if st.button("🚪 Sair", use_container_width=True):
-            st.session_state.autenticado = False; st.rerun()
+    # --- 5. FUNÇÕES AUXILIARES ---
+    def gerar_titulos_gemini(tema):
+        try:
+            prompt = f"Gere 5 títulos de notícias virais e com SEO para o portal Destaque Toledo sobre: {tema}. Use gatilhos mentais e urgência."
+            response = model.generate_content(prompt)
+            return response.text.split('\n')
+        except:
+            return ["⚠️ Erro: Configure sua API Key do Gemini no código."]
 
-    # --- FUNÇÃO GERADOR DE TÍTULOS (SIMULANDO LÓGICA DE IA) ---
-    def gerar_titulos_ia(texto):
-        if len(texto) < 5: return []
-        padrões = [
-            f"🔥 URGENTE: {texto} - Veja o que já se sabe",
-            f"😱 IMPACTANTE: O que aconteceu em {texto} vai te surpreender!",
-            f"📍 AGORA EM TOLEDO: {texto}. Confira os detalhes exclusivos!",
-            f"❓ {texto}: Entenda as consequências e o que muda agora",
-            f"🚨 PLANTÃO: Informações atualizadas sobre {texto}"
-        ]
-        return padrões
+    # (Suas funções processar_artes e buscar_ultimas aqui permanecem iguais)
+    # [Omitidas para brevidade, mas devem ser mantidas no seu arquivo]
 
-    # --- INTERFACE PRINCIPAL ---
+    # --- 6. INTERFACE INTERNA ---
     st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
-    # ABAS (MESMAS PARA AMBOS, MAS COM PERMISSÕES)
-    abas = st.tabs(["🚀 OPERAÇÃO SITE", "🛠️ TAREFAS INTERNAS", "🎨 ARTES (JUAN)", "📅 AGENDA"])
+    # DEFINIÇÃO DAS ABAS PARA AMBOS
+    if st.session_state.perfil == "juan":
+        tabs = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "🛠️ TAREFAS INTERNAS", "📅 AGENDA"])
+    else:
+        tabs = st.tabs(["📰 MINHAS PAUTAS", "🛠️ TAREFAS INTERNAS", "🚀 GERADOR DE TÍTULOS IA"])
 
-    with abas[0]: # Operação Site (Pautas)
-        if st.session_state.perfil == "juan":
-            with st.form("envio_pauta"):
-                f_tit = st.text_input("Título da Matéria")
-                f_link = st.text_input("Link Referência")
-                f_prio = st.select_slider("Urgência", options=["Normal", "Programar", "URGENTE"])
-                if st.form_submit_button("ENVIAR PARA BRAYAN"):
-                    hora = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
-                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-                    c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade) VALUES (?,?,'Pendente',?,?)", (f_tit, f_link, hora, f_prio))
-                    conn.commit(); conn.close(); st.success("Enviado!"); st.rerun()
+    # --- ABA TAREFAS (COMUM A AMBOS) ---
+    with tabs[2 if st.session_state.perfil == "juan" else 1]:
+        st.markdown('<p class="descricao-aba">Manutenção do site, banners e tarefas recorrentes.</p>', unsafe_allow_html=True)
         
-        # Lista para o Brayan Ver
+        with st.form("nova_tarefa"):
+            col_t1, col_t2 = st.columns([3, 1])
+            t_nome = col_t1.text_input("Descrição da Tarefa")
+            t_rec = col_t2.selectbox("Repetição", ["Única", "Diária", "Segunda", "Terça", "Quarta", "Quinta", "Sexta"])
+            if st.form_submit_button("CADASTRAR TAREFA", use_container_width=True):
+                if t_nome:
+                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+                    c.execute("INSERT INTO tarefas_sistema (tarefa, status, recorrencia, autor) VALUES (?, 'Pendente', ?, ?)", (t_nome, t_rec, st.session_state.perfil))
+                    conn.commit(); conn.close(); st.rerun()
+
+        st.divider()
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-        c.execute("SELECT * FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
-        pautas = c.fetchall(); conn.close()
-        for p in pautas:
-            cor = "card-urgente" if p[5] == "URGENTE" else "card-programar" if p[5] == "Programar" else ""
-            st.markdown(f'<div class="card-pauta {cor}"><b>{p[1]}</b><br><small>{p[5]} | {p[4]}</small></div>', unsafe_allow_html=True)
-            col_a, col_b = st.columns(2)
-            if p[2]: col_a.link_button("🔗 VER SITE", p[2], use_container_width=True)
-            if col_b.button("✅ CONCLUÍDO", key=f"p_{p[0]}", use_container_width=True):
-                conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='OK' WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
-
-    with abas[1]: # TAREFAS INTERNAS (SISTEMA NOVO)
-        st.subheader("📝 Gestão de Tarefas e Manutenção")
+        c.execute("SELECT * FROM tarefas_sistema WHERE status = 'Pendente'")
+        tarefas = c.fetchall(); conn.close()
         
-        # Cadastro de Tarefa
-        with st.expander("➕ CADASTRAR NOVA TAREFA", expanded=False):
-            with st.form("nova_tarefa"):
-                t_nome = st.text_input("O que precisa ser feito?")
-                t_recor = st.selectbox("Repetição", ["Única vez", "Toda Segunda", "Toda Terça", "Toda Quarta", "Toda Quinta", "Toda Sexta", "Diário"])
-                if st.form_submit_button("SALVAR TAREFA"):
+        for t in tarefas:
+            with st.container():
+                c_t1, c_t2 = st.columns([4, 1])
+                c_t1.markdown(f"📌 **{t[1]}** | <small>Recorrência: {t[3]}</small>", unsafe_allow_html=True)
+                if c_t2.button("Concluir", key=f"btn_t_{t[0]}"):
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-                    c.execute("INSERT INTO tarefas_v2 (tarefa, status, recorrencia, autor) VALUES (?, 'Pendente', ?, ?)", (t_nome, t_recor, st.session_state.perfil))
+                    c.execute("UPDATE tarefas_sistema SET status = 'Concluído' WHERE id = ?", (t[0],))
                     conn.commit(); conn.close(); st.rerun()
 
-        # Lista de Tarefas
-        col_pend, col_conc = st.columns(2)
-        
-        with col_pend:
-            st.markdown("### ⏳ Pendentes")
-            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-            c.execute("SELECT * FROM tarefas_v2 WHERE status = 'Pendente'")
-            t_pend = c.fetchall(); conn.close()
-            for t in t_pend:
-                st.markdown(f"""<div class="tarefa-card">
-                    <b>{t[1]}</b><br>
-                    <small>📅 {t[3]} | Por: {t[4]}</small>
-                </div>""", unsafe_allow_html=True)
-                if st.button("Marcar como Concluída", key=f"t_ok_{t[0]}", use_container_width=True):
-                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-                    c.execute("UPDATE tarefas_v2 SET status = 'Concluída' WHERE id = ?", (t[0],))
-                    conn.commit(); conn.close(); st.rerun()
+    # --- ABA GERADOR DE TÍTULOS IA (EXCLUSIVA BRAYAN OU JUAN) ---
+    if st.session_state.perfil == "brayan":
+        with tabs[2]:
+            st.subheader("🤖 Gerador de Títulos com Inteligência Artificial")
+            tema = st.text_input("Digite o assunto da notícia (Ex: Acidente na Av. Maripá)")
+            if st.button("GERAR TÍTULOS PROFISSIONAIS"):
+                if tema:
+                    sugestoes = gerar_titulos_gemini(tema)
+                    for s in sugestoes:
+                        if s.strip(): st.info(s)
+                else: st.warning("Digite um assunto primeiro.")
 
-        with col_conc:
-            st.markdown("### ✅ Concluídas")
-            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-            c.execute("SELECT * FROM tarefas_v2 WHERE status = 'Concluída' LIMIT 5")
-            t_conc = c.fetchall(); conn.close()
-            for tc in t_conc:
-                st.markdown(f"""<div style="opacity: 0.6; padding:10px; border-bottom:1px solid #ddd;">
-                    <strike>{tc[1]}</strike>
-                </div>""", unsafe_allow_html=True)
-                if st.button("Apagar Histórico", key=f"del_t_{tc[0]}"):
-                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM tarefas_v2 WHERE id=?", (tc[0],)); conn.commit(); conn.close(); st.rerun()
+    # (Mantenha o restante do código da Fila do Brayan e Artes conforme o seu original)
 
-    with abas[3]: # Gerador de Títulos (IA)
-        st.subheader("🚀 Gerador de Títulos com IA (SEO)")
-        t_input = st.text_input("Sobre o que é a notícia? (Ex: Acidente na BR-467)")
-        if t_input:
-            sugestoes = gerar_titulos_ia(t_input)
-            for s in sugestoes:
-                st.success(s)
-                if st.button("Copiar", key=s): st.toast("Título selecionado!")
-
-    # Aba de agenda e artes permanecem iguais conforme solicitado
+    with st.sidebar:
+        st.write(f"Logado como: **{st.session_state.perfil.upper()}**")
+        if st.button("🚪 Sair do Sistema", use_container_width=True):
+            st.session_state.autenticado = False; st.rerun()

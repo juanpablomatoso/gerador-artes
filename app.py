@@ -8,29 +8,45 @@ import os
 from datetime import datetime
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(
-    page_title="Destaque Toledo - Hub Profissional",
-    layout="wide",
-    page_icon="⚡"
-)
+st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="📸")
 
-# --- 2. ESTILO CSS GLOBAL ---
+# --- 2. ESTILIZAÇÃO CSS (SUA ESTILIZAÇÃO ORIGINAL) ---
 st.markdown("""
     <style>
+    .main { background-color: #f4f7f9; }
     [data-testid="stSidebar"] { background-color: #0e1117; border-right: 1px solid #30363d; }
-    .stButton>button { width: 100%; border-radius: 8px !important; }
-    .main-title { font-size: 2.2rem; font-weight: 800; color: #1E1E1E; border-left: 8px solid #007bff; padding-left: 15px; margin-bottom: 20px; }
-    .welcome-card { background: linear-gradient(135deg, #004a99 0%, #007bff 100%); color: white; padding: 30px; border-radius: 20px; margin-bottom: 30px; }
-    .publi-box { background: #f8f9fa; padding: 15px; border-radius: 10px; border: 1px solid #dee2e6; }
+    
+    .topo-titulo {
+        text-align: center; padding: 30px;
+        background: linear-gradient(90deg, #004a99 0%, #007bff 100%);
+        color: white; border-radius: 0 0 20px 20px;
+        margin-bottom: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    .topo-titulo h1 { margin: 0; font-size: 2.5rem; font-weight: 800; }
+
+    .stButton>button {
+        width: 100%; text-align: left !important;
+        border-radius: 10px !important; border: 1px solid #dce1e6 !important;
+        background-color: white !important; padding: 15px !important;
+        transition: all 0.2s ease;
+    }
+    
+    /* Botões de Ação Específicos */
+    div[data-testid="stColumn"]:nth-of-type(1) button { background: #007bff !important; color: white !important; text-align: center !important; font-weight: bold !important; height: 60px !important; }
+    div[data-testid="stColumn"]:nth-of-type(2) button { background: #6f42c1 !important; color: white !important; text-align: center !important; font-weight: bold !important; height: 60px !important; }
+
+    .instrucao-card { background: white; padding: 20px; border-radius: 15px; border-left: 6px solid #007bff; margin-bottom: 20px; }
+    .publi-box { background: white; padding: 20px; border-radius: 15px; border: 1px solid #eee; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. CONFIGURAÇÕES E FUNÇÕES DE ARTE ---
+# --- 3. CONFIGURAÇÕES DE CAMINHOS ---
 CAMINHO_FONTE = "Shoika Bold.ttf"
 TEMPLATE_FEED = "template_feed.png"
 TEMPLATE_STORIE = "template_storie.png"
-HEADERS = {"User-Agent": "Mozilla/5.0"}
+HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
+# --- 4. SUAS FUNÇÕES CORE (EXATAMENTE COMO VOCÊ ENVIOU) ---
 def obter_lista_noticias():
     try:
         url_site = "https://www.destaquetoledo.com.br/"
@@ -53,9 +69,9 @@ def processar_artes_web(url, tipo_saida):
         titulo = soup_m.find("h1").get_text(strip=True)
         corpo = soup_m.find(class_="post-body") or soup_m
         img_url = next(img.get("src") for img in corpo.find_all("img") if "logo" not in img.get("src").lower())
+        
         img_res = requests.get(img_url, headers=HEADERS)
         img_original = Image.open(io.BytesIO(img_res.content)).convert("RGBA")
-        
         larg_o, alt_o = img_original.size
         prop_o = larg_o / alt_o
 
@@ -73,113 +89,119 @@ def processar_artes_web(url, tipo_saida):
                 img_f.alpha_composite(Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAM, TAM)))
             draw = ImageDraw.Draw(img_f)
             tam = 85
-            fnt = ImageFont.truetype(CAMINHO_FONTE, tam) # Simplificado para o exemplo
-            draw.text((50, 800), titulo[:40]+"...", fill="black", font=fnt)
+            while tam > 20:
+                fnt = ImageFont.truetype(CAMINHO_FONTE, tam)
+                lns = textwrap.wrap(titulo, width=int(662/(fnt.getlength("W")*0.55)))
+                if (len(lns)*tam) <= 165 and len(lns) <= 3: break
+                tam -= 1
+            y = 811 - ((len(lns)*tam)//2)
+            for l in lns:
+                draw.text((488 - (draw.textbbox((0,0), l, font=fnt)[2]//2), y), l, fill="black", font=fnt)
+                y += tam + 4
             return img_f.convert("RGB"), titulo
-        else: # STORY
+
+        else: # STORY (Lógica original mantida 100%)
+            L_S, A_S = 940, 541
+            ratio = L_S / A_S
+            ns_l, ns_a = (int(A_S*prop_o), A_S) if prop_o > ratio else (L_S, int(L_S/prop_o))
+            img_s = img_original.resize((ns_l, ns_a), Image.LANCZOS).crop(((ns_l-L_S)//2, (ns_a-A_S)//2, (ns_l-L_S)//2+L_S, (ns_a-A_S)//2+A_S))
             canvas = Image.new("RGBA", (1080, 1920), (0,0,0,0))
-            # ... (Sua lógica de story original entra aqui)
+            canvas.paste(img_s, (69, 504))
+            if os.path.exists(TEMPLATE_STORIE):
+                canvas.alpha_composite(Image.open(TEMPLATE_STORIE).convert("RGBA").resize((1080, 1920)))
+            draw = ImageDraw.Draw(canvas)
+            tam = 60
+            while tam > 20:
+                fnt = ImageFont.truetype(CAMINHO_FONTE, tam)
+                lns = textwrap.wrap(titulo, width=int(912/(fnt.getlength("W")*0.55)))
+                if (len(lns)*tam) <= 300 and len(lns) <= 4: break
+                tam -= 2
+            y = 1079
+            for l in lns:
+                draw.text((69, y), l, fill="white", font=fnt)
+                y += tam + 12
             return canvas.convert("RGB"), titulo
     except: return None, None
 
-# --- 4. DEFINIÇÃO DAS PÁGINAS ---
+# --- 5. INTERFACE EM ABAS ---
+st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel Integrado de Gestão</p></div>', unsafe_allow_html=True)
 
-def pagina_dashboard():
-    st.markdown('<div class="welcome-card"><h1>Painel Geral</h1><p>Bem-vindo ao sistema de gestão Destaque Toledo.</p></div>', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Notícias", "Sincronizadas", "OK")
-    c2.metric("Status", "Online", "2026")
-    c3.metric("Publicidade", "4 Ativas", "Mensal")
+aba_gerador, aba_agenda, aba_publi, aba_artes = st.tabs([
+    "🎨 GERADOR DE ARTES", "📅 AGENDA SEMANAL", "📢 PUBLICIDADES", "🖼️ ARTES PRONTAS"
+])
 
-def pagina_gerador_artes():
-    st.markdown('<div class="main-title">Gerador de Artes</div>', unsafe_allow_html=True)
+# --- CONTEÚDO DA ABA 1: SEU GERADOR ORIGINAL ---
+with aba_gerador:
     col_lista, col_trabalho = st.columns([1, 1.8])
     with col_lista:
-        st.subheader("📰 Recentes")
+        st.markdown("### 📰 Notícias Recentes")
+        if st.button("🔄 Sincronizar Agora"): st.rerun()
         lista = obter_lista_noticias()
         for item in lista:
-            if st.button(item['titulo'], key=f"btn_{item['url']}"):
+            if st.button(item['titulo'], key=f"gen_{item['url']}"):
                 st.session_state.url_ativa = item['url']
     with col_trabalho:
-        url_ativa = st.text_input("📍 URL ativa:", value=st.session_state.get('url_ativa', ''))
+        url_ativa = st.text_input("📍 Notícia em foco:", value=st.session_state.get('url_ativa', ''))
         if url_ativa:
+            st.markdown("<br>", unsafe_allow_html=True)
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("🖼️ GERAR FEED"):
+                if st.button("🖼️ GERAR PARA FEED"):
                     img, _ = processar_artes_web(url_ativa, "FEED")
-                    if img: st.image(img, use_container_width=True)
+                    if img: 
+                        st.image(img, use_container_width=True)
+                        buf = io.BytesIO(); img.save(buf, format="JPEG", quality=95)
+                        st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg", "image/jpeg")
             with c2:
-                if st.button("📱 GERAR STORY"):
+                if st.button("📱 GERAR PARA STORY"):
                     img, _ = processar_artes_web(url_ativa, "STORY")
-                    if img: st.image(img, width=250)
+                    if img: 
+                        st.image(img, width=280)
+                        buf = io.BytesIO(); img.save(buf, format="JPEG", quality=95)
+                        st.download_button("📥 Baixar Story", buf.getvalue(), "story.jpg", "image/jpeg")
+        else:
+            st.markdown('<div class="instrucao-card"><h4>Bem-vindo!</h4>Escolha uma notícia ao lado para começar.</div>', unsafe_allow_html=True)
 
-def pagina_agenda_semanal():
-    st.markdown('<div class="main-title">📅 Agenda Fixa da Semana</div>', unsafe_allow_html=True)
+# --- CONTEÚDO DA ABA 2: AGENDA SEMANAL ---
+with aba_agenda:
+    st.markdown("### 📅 Agenda de Stories Fixos")
     dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
     cols = st.columns(7)
     for i, dia in enumerate(dias):
         with cols[i]:
-            st.info(f"**{dia}**")
+            st.markdown(f"**{dia}**")
             key = f"agenda_{dia}"
             if key not in st.session_state: st.session_state[key] = ""
-            st.session_state[key] = st.text_area("Pauta:", value=st.session_state[key], key=f"ta_{dia}", height=150)
-    st.button("💾 Salvar Agenda (Sessão)")
+            st.session_state[key] = st.text_area("Pauta:", value=st.session_state[key], key=f"txt_{dia}", height=250, label_visibility="collapsed")
+    st.success("Nota: As anotações ficam salvas enquanto o painel estiver aberto.")
 
-def pagina_publicidade():
-    st.markdown('<div class="main-title">📢 Stories de Publicidade</div>', unsafe_allow_html=True)
-    
-    # Exemplo de empresas (Aqui você cadastra suas publis)
-    publis = {
-        "Supermercado Toledo": {"user": "@supertoledo", "link": "https://ofertas.com", "banner": "https://via.placeholder.com/1080x1920/004a99/ffffff?text=OFERTAS+DO+DIA"},
-        "Farmácia Saúde": {"user": "@farmasaude", "link": "https://wa.me/123", "banner": "https://via.placeholder.com/1080x1920/cc0000/ffffff?text=PROMO+SAUDE"},
+# --- CONTEÚDO DA ABA 3: PUBLICIDADE ---
+with aba_publi:
+    st.markdown("### 📢 Stories de Publicidade")
+    # Exemplo de cadastro (Edite aqui suas empresas)
+    empresas = {
+        "Empresa Exemplo 1": {"@": "@exemplo1", "link": "https://link1.com", "banner": "https://via.placeholder.com/400x700?text=Banner+Empresa+1"},
+        "Empresa Exemplo 2": {"@": "@exemplo2", "link": "https://link2.com", "banner": "https://via.placeholder.com/400x700?text=Banner+Empresa+2"}
     }
+    sel_empresa = st.selectbox("Selecione o Cliente:", list(empresas.keys()))
+    dados = empresas[sel_empresa]
     
-    sel = st.selectbox("Escolha a Empresa:", list(publis.keys()))
-    dados = publis[sel]
-    
-    col_info, col_banner = st.columns([1, 1.5])
-    with col_info:
-        st.markdown(f"""
-        <div class="publi-box">
-            <h3>{sel}</h3>
-            <p><b>Marcar:</b> {dados['user']}</p>
-            <p><b>Link:</b> {dados['link']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        st.code(f"{dados['user']}\n{dados['link']}")
-        st.button("Copiar p/ Celular")
-    
-    with col_banner:
+    col_inf, col_img = st.columns([1, 1.5])
+    with col_inf:
+        st.markdown(f"""<div class="publi-box"><h3>{sel_empresa}</h3>
+        <p><b>Marcar:</b> {dados['@']}</p><p><b>Link:</b> {dados['link']}</p></div>""", unsafe_allow_html=True)
+        st.code(f"Marcar: {dados['@']}\nLink: {dados['link']}")
+    with col_img:
         st.image(dados['banner'], width=300)
 
-def pagina_artes_prontas():
-    st.markdown('<div class="main-title">🖼️ Artes Prontas</div>', unsafe_allow_html=True)
-    artes = [
-        {"nome": "Bom Dia", "img": "https://via.placeholder.com/300x500?text=BOM+DIA"},
-        {"nome": "Plantão", "img": "https://via.placeholder.com/300x500?text=PLANTAO"},
-        {"nome": "Luto", "img": "https://via.placeholder.com/300x500?text=LUTO"}
-    ]
-    cols = st.columns(4)
-    for i, arte in enumerate(artes):
-        with cols[i % 4]:
-            st.image(arte['img'], use_container_width=True)
-            st.download_button(f"Baixar {arte['nome']}", b"data", file_name=f"{arte['nome']}.jpg")
-
-# --- 5. NAVEGAÇÃO LATERAL ---
-with st.sidebar:
-    st.title("🛡️ DESTAQUE PRO")
-    st.divider()
-    pagina_selecionada = st.radio(
-        "MENU PRINCIPAL",
-        ["🏠 Dashboard", "📸 Gerador de Artes", "📅 Agenda Semanal", "📢 Publicidade", "🖼️ Artes Prontas"],
-        index=0
-    )
-    st.divider()
-    st.caption(f"v2.5 | 2026")
-
-# --- 6. ROTEAMENTO ---
-if pagina_selecionada == "🏠 Dashboard": pagina_dashboard()
-elif pagina_selecionada == "📸 Gerador de Artes": pagina_gerador_artes()
-elif pagina_selecionada == "📅 Agenda Semanal": pagina_agenda_semanal()
-elif pagina_selecionada == "📢 Publicidade": pagina_publicidade()
-elif pagina_selecionada == "🖼️ Artes Prontas": pagina_artes_prontas()
+# --- CONTEÚDO DA ABA 4: ARTES PRONTAS ---
+with aba_artes:
+    st.markdown("### 🖼️ Banco de Artes Fixas")
+    # Simulação de artes que ficam fixas para download
+    st.info("Coloque suas imagens (.png ou .jpg) na mesma pasta do script para habilitar o download.")
+    grid = st.columns(4)
+    artes_fixas = ["Bom Dia", "Plantão", "Alerta", "Previsão"]
+    for i, arte in enumerate(artes_fixas):
+        with grid[i]:
+            st.image("https://via.placeholder.com/200", caption=arte)
+            st.button(f"Baixar {arte}", key=f"dl_{i}")

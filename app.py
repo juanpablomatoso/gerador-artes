@@ -372,40 +372,67 @@ def buscar_ultimas():
         return []
 
 # ============================================================
-# 9) LOGIN (SEM HARDCODE + MENSAGEM SE CONFIG FALTANDO)
+# 9) LOGIN (VERSÃO OTIMIZADA E MODERNA)
 # ============================================================
 if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
+    # Centralização da logo e título com estilo aprimorado
     st.markdown(
-        '<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel Administrativo</p></div>',
-        unsafe_allow_html=True,
+        """
+        <div style="text-align: center; padding: 20px;">
+            <h1 style="color: #004a99; margin-bottom: 0; font-family: sans-serif;">DESTAQUE TOLEDO</h1>
+            <p style="color: #666; font-size: 1.1rem;">Painel de Controle Administrativo</p>
+        </div>
+        """, 
+        unsafe_allow_html=True
     )
+
     _, col2, _ = st.columns([1, 1.2, 1])
+    
     with col2:
-        if not AUTH_CONFIG_OK:
-            st.error(
-                "Autenticação não configurada.\n\n"
-                "Você precisa definir as senhas em HASH.\n"
-                "Opções:\n"
-                "1) Variáveis de ambiente: DT_AUTH_JUAN e DT_AUTH_BRAYAN\n"
-                "2) Streamlit secrets: [AUTH] juan=... brayan=...\n\n"
-                "Formato: pbkdf2_sha256$iterations$salt_hex$hash_hex"
-            )
-            st.stop()
+        # Usando container com borda para dar aspecto de "card" de login
+        with st.container(border=True):
+            st.markdown("<h3 style='text-align: center; margin-top: 0;'>Acesso Restrito</h3>", unsafe_allow_html=True)
+            
+            if not AUTH_CONFIG_OK:
+                st.error(
+                    "⚠️ **Configuração Faltando**\n\n"
+                    "As chaves de autenticação não foram detectadas.\n"
+                    "Certifique-se de configurar os secrets no Streamlit Cloud."
+                )
+                st.stop()
 
-        with st.form("login_direto"):
-            u = st.text_input("Usuário").lower().strip()
-            s = st.text_input("Senha", type="password")
-
-            if st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True):
+            u = st.text_input("👤 Usuário", placeholder="Digite seu usuário").lower().strip()
+            s = st.text_input("🔑 Senha", type="password", placeholder="Digite sua senha")
+            
+            # Recurso visual de "Mantenha-me conectado"
+            manter_conectado = st.checkbox("Manter-se conectado", value=True)
+            
+            st.write("") # Espaçador
+            
+            if st.button("ENTRAR NO SISTEMA", use_container_width=True, type="primary"):
                 if u in ("juan", "brayan") and verify_password(s, AUTH_HASHES.get(u, "")):
                     st.session_state.autenticado = True
                     st.session_state.perfil = u
+                    st.session_state.manter_sessao = manter_conectado
+                    st.toast(f"Bem-vindo, {u.capitalize()}!", icon="✅")
                     st.rerun()
                 else:
-                    st.error("Acesso negado.")
+                    st.error("❌ Usuário ou senha incorretos.")
+
+        # Links auxiliares abaixo do card
+        st.markdown(
+            """
+            <div style="text-align: center; margin-top: 20px;">
+                <a href="https://www.destaquetoledo.com.br" target="_blank" style="text-decoration: none; color: #007bff; font-size: 0.85rem;">🌐 Acessar Site Público</a>
+                <br><br>
+                <small style="color: #999;">Suporte técnico: <a href="mailto:admin@destaquetoledo.com.br" style="color: #999;">Contato</a></small>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
 else:
     # ============================================================
@@ -602,4 +629,5 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 

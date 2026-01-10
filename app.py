@@ -388,7 +388,6 @@ for article in soup.find_all("article"):
             "u": urljoin(base, href)
         })
 
-
         # remove duplicados por URL
         seen = set()
         out = []
@@ -633,5 +632,6 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 

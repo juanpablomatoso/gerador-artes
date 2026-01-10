@@ -459,15 +459,17 @@ if not st.session_state.autenticado:
         )
 
 else:
-    # ============================================================
-    # 10) INTERFACE INTERNA
-    # ============================================================
+# ============================================================
+# 10) INTERFACE INTERNA
+# ============================================================
+else:
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
     if st.session_state.perfil == "juan":
         st.markdown('<div class="boas-vindas">Bem-vindo, Juan!</div>', unsafe_allow_html=True)
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
 
+        # ================= TAB 1 =================
         with tab1:
             st.markdown(
                 '<p class="descricao-aba">Aqui você gera automaticamente os posts para Instagram.</p>',
@@ -491,37 +493,14 @@ else:
                     ca, cb = st.columns(2)
 
                     if ca.button("🖼️ GERAR FEED", use_container_width=True, type="primary"):
-                        try:
-                            img = processar_artes_integrado(url_f, "FEED")
-                            st.image(img)
-
-                            buf = io.BytesIO()
-                            img.save(buf, "JPEG", quality=95, optimize=True)
-                            st.download_button(
-                                "📥 BAIXAR FEED",
-                                buf.getvalue(),
-                                "feed.jpg",
-                                use_container_width=True,
-                            )
-                        except Exception as e:
-                            st.error(f"Falha ao gerar FEED: {e}")
+                        img = processar_artes_integrado(url_f, "FEED")
+                        st.image(img)
 
                     if cb.button("📱 GERAR STORY", use_container_width=True):
-                        try:
-                            img = processar_artes_integrado(url_f, "STORY")
-                            st.image(img, width=280)
+                        img = processar_artes_integrado(url_f, "STORY")
+                        st.image(img, width=280)
 
-                            buf = io.BytesIO()
-                            img.save(buf, "JPEG", quality=95, optimize=True)
-                            st.download_button(
-                                "📥 BAIXAR STORY",
-                                buf.getvalue(),
-                                "story.jpg",
-                                use_container_width=True,
-                            )
-                        except Exception as e:
-                            st.error(f"Falha ao gerar STORY: {e}")
-
+        # ================= TAB 2 =================
         with tab2:
             st.markdown(
                 '<p class="descricao-aba">Envie as matérias que o Brayan deve postar.</p>',
@@ -550,87 +529,50 @@ else:
                         conn.close()
                         st.success("Pauta enviada!")
                         st.rerun()
-                    else:
-                        st.warning("Informe ao menos o título.")
 
-            st.markdown("---")
-            st.subheader("📋 Últimos Envios")
-            conn = get_conn()
-            c = conn.cursor()
-            c.execute("SELECT id, titulo, prioridade, data_envio, status FROM pautas_trabalho ORDER BY id DESC LIMIT 6")
-            p_hist = c.fetchall()
-            conn.close()
+        # ================= TAB 3 (AGENDA) =================
+        with tab3:
+            st.markdown(
+                '<p class="descricao-aba">Agenda editorial do portal: lembretes, pautas e tarefas do dia.</p>',
+                unsafe_allow_html=True,
+            )
 
-            cols_hist = st.columns(3)
-            for i, p in enumerate(p_hist):
-                with cols_hist[i % 3]:
-                    classe_cor = "card-urgente" if p[2] == "URGENTE" else "card-programar" if p[2] == "Programar" else ""
-                    st.markdown(
-                        f"<div class='card-pauta {classe_cor}'><small>{p[3]}</small><br><b>{p[1]}</b></div>",
-                        unsafe_allow_html=True,
-                    )
-                    if st.button("Remover", key=f"ex_{p[0]}"):
+            hoje = datetime.utcnow() - timedelta(hours=3)
+            st.info(f"📅 **Agenda Editorial – {hoje.strftime('%d/%m/%Y')}**")
+
+            with st.form("form_agenda"):
+                col_a, col_b = st.columns([2, 1])
+
+                with col_a:
+                    a_titulo = st.text_input("Título da tarefa / lembrete")
+                    a_desc = st.text_area("Descrição (opcional)", height=80)
+
+                with col_b:
+                    a_data = st.date_input("Data de referência", value=hoje.date())
+
+                if st.form_submit_button("➕ ADICIONAR À AGENDA", use_container_width=True):
+                    if a_titulo:
                         conn = get_conn()
                         c = conn.cursor()
-                        c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],))
+                        c.execute(
+                            """
+                            INSERT INTO agenda (titulo, descricao, data_ref, status, criado_em)
+                            VALUES (?, ?, ?, 'Pendente', ?)
+                            """,
+                            (
+                                a_titulo,
+                                a_desc,
+                                a_data.strftime("%Y-%m-%d"),
+                                hoje.strftime("%Y-%m-%d %H:%M"),
+                            ),
+                        )
                         conn.commit()
                         conn.close()
+                        st.success("Item adicionado à agenda.")
                         st.rerun()
 
-with tab3:
-    st.markdown(
-        '<p class="descricao-aba">Agenda editorial do portal: lembretes, pautas e tarefas do dia.</p>',
-        unsafe_allow_html=True,
-    )
-
-    # ===============================
-    # ALERTA DO DIA
-    # ===============================
-    hoje = datetime.utcnow() - timedelta(hours=3)
-    hoje_str = hoje.strftime("%d/%m/%Y")
-
-    st.info(f"📅 **Agenda Editorial – {hoje_str}**")
-
-    # ===============================
-    # FORMULÁRIO: NOVA TAREFA
-    # ===============================
-    with st.form("form_agenda"):
-        col_a, col_b = st.columns([2, 1])
-
-        with col_a:
-            a_titulo = st.text_input("Título da tarefa / lembrete")
-            a_desc = st.text_area("Descrição (opcional)", height=80)
-
-        with col_b:
-            a_data = st.date_input("Data de referência", value=hoje.date())
-
-        if st.form_submit_button("➕ ADICIONAR À AGENDA", use_container_width=True):
-            if a_titulo:
-                conn = get_conn()
-                c = conn.cursor()
-                c.execute(
-                    """
-                    INSERT INTO agenda (titulo, descricao, data_ref, status, criado_em)
-                    VALUES (?, ?, ?, 'Pendente', ?)
-                    """,
-                    (
-                        a_titulo,
-                        a_desc,
-                        a_data.strftime("%Y-%m-%d"),
-                        hoje.strftime("%Y-%m-%d %H:%M"),
-                    ),
-                )
-                conn.commit()
-                conn.close()
-                st.success("Item adicionado à agenda.")
-                st.rerun()
-            else:
-                st.warning("Informe ao menos o título.")
-
+    # ================= PAINEL BRAYAN =================
     else:
-        # ============================================================
-        # PAINEL BRAYAN
-        # ============================================================
         st.markdown('<div class="boas-vindas">Olá, Brayan! Bom trabalho.</div>', unsafe_allow_html=True)
         st.markdown(
             '<p class="descricao-aba">Confira abaixo as matérias enviadas pelo Juan.</p>',
@@ -650,51 +592,11 @@ with tab3:
         p_br = c.fetchall()
         conn.close()
 
-        if not p_br:
-            st.success("Tudo em dia! Nenhuma pauta nova por enquanto.")
-
         for pb in p_br:
             b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
-            classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
-            tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
+            st.markdown(f"**{b_tit}** — {b_prio}")
 
-            st.markdown(
-                f"""
-                <div class="card-pauta {classe_cor}">
-                    <span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br>
-                    <p style='font-size: 1.4rem; font-weight: bold; margin: 10px 0;'>{b_tit}</p>
-                </div>
-                """,
-                unsafe_allow_html=True,
-            )
-
-            if b_obs:
-                st.markdown(
-                    f'<div class="obs-box"><b>💡 Instrução do Juan:</b><br>{b_obs}</div>',
-                    unsafe_allow_html=True,
-                )
-
-            if b_link and b_link != "Sem Link":
-                st.link_button("🔗 ABRIR MATÉRIA NO SITE", b_link, use_container_width=True)
-
-            st.write("")
-
-            if st.button("✅ MARCAR COMO POSTADO", key=f"ok_{b_id}", use_container_width=True, type="primary"):
-                conn = get_conn()
-                c = conn.cursor()
-                c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?", (b_id,))
-                conn.commit()
-                conn.close()
-                st.rerun()
-
-            st.markdown("---")
-
-        if st.button("🆘 Precisa de ajuda ou encontrou um erro?"):
-            st.warning("Brayan, caso o sistema apresente erro, entre em contato direto com o Juan.")
-
-    # ============================================================
-    # SIDEBAR
-    # ============================================================
+    # ================= SIDEBAR =================
     with st.sidebar:
         st.write(f"Logado como: **{st.session_state.perfil.upper()}**")
         if st.button("🚪 Sair do Sistema", use_container_width=True):

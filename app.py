@@ -378,7 +378,7 @@ if "autenticado" not in st.session_state:
     st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
-    # Centralização da logo e título com estilo aprimorado
+    # Cabeçalho da página de login
     st.markdown(
         """
         <div style="text-align: center; padding: 20px;">
@@ -392,7 +392,6 @@ if not st.session_state.autenticado:
     _, col2, _ = st.columns([1, 1.2, 1])
     
     with col2:
-        # Usando container com borda para dar aspecto de "card" de login
         with st.container(border=True):
             st.markdown("<h3 style='text-align: center; margin-top: 0;'>Acesso Restrito</h3>", unsafe_allow_html=True)
             
@@ -407,10 +406,9 @@ if not st.session_state.autenticado:
             u = st.text_input("👤 Usuário", placeholder="Digite seu usuário").lower().strip()
             s = st.text_input("🔑 Senha", type="password", placeholder="Digite sua senha")
             
-            # Recurso visual de "Mantenha-me conectado"
             manter_conectado = st.checkbox("Manter-se conectado", value=True)
             
-            st.write("") # Espaçador
+            st.write("") 
             
             if st.button("ENTRAR NO SISTEMA", use_container_width=True, type="primary"):
                 if u in ("juan", "brayan") and verify_password(s, AUTH_HASHES.get(u, "")):
@@ -422,7 +420,7 @@ if not st.session_state.autenticado:
                 else:
                     st.error("❌ Usuário ou senha incorretos.")
 
-        # Links auxiliares abaixo do card
+        # Rodapé do Login
         st.markdown(
             """
             <div style="text-align: center; margin-top: 20px;">
@@ -554,7 +552,7 @@ else:
                         st.rerun()
 
         with tab3:
-            st.info("A aba AGENDA está mantida como no seu projeto (tabela 'agenda'). Se quiser, posso finalizar a UI dela.")
+            st.info("A aba AGENDA está mantida conforme o banco de dados original.")
 
     else:
         # ============================================================
@@ -629,5 +627,3 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
-
-

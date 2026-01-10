@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
-# --- 2. ESTILIZAÇÃO CSS (TODAS AS CORES RESTAURADAS) ---
+# --- 2. ESTILIZAÇÃO CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #f8f9fa; }
@@ -21,7 +21,6 @@ st.markdown("""
         color: white; border-radius: 15px; margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    /* Estilo dos Cards */
     .card-pauta {
         background-color: white; padding: 20px; border-radius: 12px;
         border-left: 6px solid #004a99; margin-bottom: 15px;
@@ -30,7 +29,6 @@ st.markdown("""
     .card-urgente { border-left: 6px solid #dc3545 !important; background-color: #fff5f5 !important; }
     .card-programar { border-left: 6px solid #ffc107 !important; background-color: #fffdf5 !important; }
     
-    /* Tags de Status */
     .tag-status {
         padding: 4px 12px; border-radius: 20px; font-size: 0.75rem;
         font-weight: bold; text-transform: uppercase;
@@ -39,55 +37,31 @@ st.markdown("""
     .tag-normal { background-color: #e9ecef; color: #495057; }
     .tag-programar { background-color: #ffc107; color: #000; }
     
-    /* Caixa de Observação */
     .obs-box {
         background-color: #e7f1ff; padding: 12px; border-radius: 8px;
         border: 1px dashed #004a99; margin-top: 10px; margin-bottom: 15px; font-style: italic;
     }
-
-    /* Perfil na Sidebar */
-    .perfil-container {
-        display: flex; align-items: center; gap: 12px; padding: 15px;
-        background: white; border-radius: 12px; margin-bottom: 20px;
-        border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    .seo-box {
+        background-color: #f1f8e9; padding: 15px; border-radius: 10px;
+        border: 1px solid #c5e1a5; margin-bottom: 10px;
     }
-    .avatar-img {
-        width: 55px; height: 55px; border-radius: 50%;
-        object-fit: cover; border: 2px solid #004a99;
-    }
-    .perfil-info { line-height: 1.2; }
-    .perfil-nome { font-weight: bold; color: #333; font-size: 1rem; display: block; }
-    .perfil-cargo { color: #888; font-size: 0.75rem; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. USUÁRIOS E FOTOS ---
-USUARIOS = {
-    "juan": {
-        "nome": "Juan Matos", 
-        "cargo": "Administrador",
-        "senha": "juan123", 
-        "foto": "https://www.w3schools.com/howto/img_avatar.png" # Troque pelo seu arquivo juan.jpg
-    },
-    "brayan": {
-        "nome": "Brayan Editor", 
-        "cargo": "Editor de Conteúdo",
-        "senha": "brayan123", 
-        "foto": "https://www.w3schools.com/howto/img_avatar2.png" # Troque pelo seu arquivo brayan.jpg
-    }
-}
-
-# --- 4. BANCO DE DADOS ---
+# --- 3. BANCO DE DADOS ---
 def init_db():
     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS agenda (dia TEXT PRIMARY KEY, pauta TEXT)')
     c.execute('''CREATE TABLE IF NOT EXISTS pautas_trabalho 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, link_ref TEXT, status TEXT, data_envio TEXT, prioridade TEXT, observacao TEXT)''')
+    # Nova tabela para Tarefas Internas
+    c.execute('''CREATE TABLE IF NOT EXISTS tarefas_internas 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, tarefa TEXT, status TEXT)''')
     conn.commit(); conn.close()
 
 init_db()
 
-# --- 5. LOGIN ---
+# --- 4. LOGIN ---
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
@@ -95,32 +69,22 @@ if not st.session_state.autenticado:
     _, col2, _ = st.columns([1, 1.2, 1])
     with col2:
         with st.form("login_direto"):
-            u_input = st.text_input("Usuário").lower().strip()
-            s_input = st.text_input("Senha", type="password")
-            st.checkbox("Mantenha-me conectado", value=True) # Checkbox adicionado
+            u = st.text_input("Usuário").lower().strip()
+            s = st.text_input("Senha", type="password")
+            st.checkbox("Mantenha-me conectado", value=True)
             if st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True):
-                if u_input in USUARIOS and s_input == USUARIOS[u_input]["senha"]:
-                    st.session_state.autenticado = True
-                    st.session_state.perfil = u_input
-                    st.rerun()
+                if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
+                    st.session_state.autenticado = True; st.session_state.perfil = u; st.rerun()
                 else: st.error("Acesso negado.")
 else:
-    # --- BARRA LATERAL COM PERFIL ---
-    user = USUARIOS[st.session_state.perfil]
+    # --- BARRA LATERAL ---
     with st.sidebar:
-        st.markdown(f"""
-            <div class="perfil-container">
-                <img src="{user['foto']}" class="avatar-img">
-                <div class="perfil-info">
-                    <span class="perfil-nome">{user['nome']}</span>
-                    <span class="perfil-cargo">{user['cargo']}</span>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.write(f"👤 Logado como: **{st.session_state.perfil.upper()}**")
+        st.divider()
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False; st.rerun()
 
-    # --- 6. FUNÇÕES DE ARTE (BLOQUEADAS) ---
+    # --- FUNÇÕES DE ARTE (OCULTAS POR SEGURANÇA) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"; TEMPLATE_FEED = "template_feed.png"; TEMPLATE_STORIE = "template_storie.png"; HEADERS = {"User-Agent": "Mozilla/5.0"}
     
     def processar_artes_integrado(url, tipo_solicitated):
@@ -168,9 +132,9 @@ else:
     st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
     if st.session_state.perfil == "juan":
-        tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
+        tabs = st.tabs(["🎨 ARTES", "📝 FILA BRAYAN", "📅 AGENDA", "✅ TAREFAS"])
         
-        with tab1:
+        with tabs[0]: # Gerador de Artes
             c1, col_preview = st.columns([1, 2])
             with c1:
                 st.subheader("📰 Notícias")
@@ -181,40 +145,84 @@ else:
                 if url_f:
                     ca, cb = st.columns(2)
                     if ca.button("🖼️ FEED", use_container_width=True, type="primary"):
-                        img = processar_artes_integrado(url_f, "FEED"); st.image(img); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("📥 BAIXAR", buf.getvalue(), "feed.jpg")
+                        img = processar_artes_integrado(url_f, "FEED"); st.image(img); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("📥 BAIXAR FEED", buf.getvalue(), "feed.jpg")
                     if cb.button("📱 STORY", use_container_width=True):
-                        img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=280); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("📥 BAIXAR", buf.getvalue(), "story.jpg")
+                        img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=280); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("📥 BAIXAR STORY", buf.getvalue(), "story.jpg")
 
-        with tab2:
-            with st.form("envio"):
-                f_titulo = st.text_input("Título"); f_link = st.text_input("Link"); f_obs = st.text_area("Instruções")
-                f_urgencia = st.select_slider("Prioridade", options=["Normal", "Programar", "URGENTE"])
+        with tabs[1]: # Fila do Brayan
+            with st.form("envio_pauta"):
+                f_titulo = st.text_input("Título da Matéria")
+                f_link = st.text_input("Link de Referência")
+                f_obs = st.text_area("Instruções Adicionais")
+                f_prio = st.select_slider("Urgência", options=["Normal", "Programar", "URGENTE"])
                 if st.form_submit_button("🚀 ENVIAR PAUTA"):
-                    hora_br = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
+                    hora = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-                    c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", (f_titulo, f_link, hora_br, f_urgencia, f_obs))
-                    conn.commit(); conn.close(); st.rerun()
+                    c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", (f_titulo, f_link, hora, f_prio, f_obs))
+                    conn.commit(); conn.close(); st.success("Pauta enviada!"); st.rerun()
 
-    else: # PAINEL BRAYAN (CORES RESTAURADAS AQUI)
-        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-        c.execute("SELECT id, titulo, link_ref, data_envio, prioridade, observacao FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
-        p_br = c.fetchall(); conn.close()
+        with tabs[3]: # Tarefas Internas (Juan Visualiza e Cria)
+            st.subheader("🛠️ Gerenciar Tarefas de Manutenção")
+            nova_t = st.text_input("Nova Tarefa (Ex: Trocar Banner)")
+            if st.button("Adicionar Tarefa"):
+                conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+                c.execute("INSERT INTO tarefas_internas (tarefa, status) VALUES (?, 'Pendente')", (nova_t,))
+                conn.commit(); conn.close(); st.rerun()
+            
+            st.divider()
+            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+            c.execute("SELECT * FROM tarefas_internas WHERE status = 'Pendente'")
+            tarefas = c.fetchall(); conn.close()
+            for t in tarefas:
+                col_t, col_b = st.columns([4, 1])
+                col_t.write(f"📌 {t[1]}")
+                if col_b.button("Excluir", key=f"del_t_{t[0]}"):
+                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM tarefas_internas WHERE id=?", (t[0],)); conn.commit(); conn.close(); st.rerun()
+
+    else: # PAINEL BRAYAN (FUNCIONALIDADES NOVAS)
+        tabs_b = st.tabs(["📰 PAUTAS DO DIA", "✅ TAREFAS INTERNAS", "📝 CHECKLIST", "🚀 GERADOR TÍTULOS"])
         
-        for pb in p_br:
-            b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
-            # Lógica de cores restaurada
-            classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
-            tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
-            
-            st.markdown(f"""
-                <div class="card-pauta {classe_cor}">
-                    <span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br>
-                    <p style='font-size: 1.4rem; font-weight: bold; margin: 10px 0;'>{b_tit}</p>
-                </div>
-            """, unsafe_allow_html=True)
-            
-            if b_obs: st.markdown(f'<div class="obs-box"><b>💡 Instrução:</b><br>{b_obs}</div>', unsafe_allow_html=True)
-            if b_link: st.link_button("🔗 ABRIR MATÉRIA", b_link, use_container_width=True)
-            if st.button("✅ POSTADO", key=f"ok_{b_id}", use_container_width=True, type="primary"):
-                conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(b_id,)); conn.commit(); conn.close(); st.rerun()
-            st.markdown("---")
+        with tabs_b[0]: # Pautas
+            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+            c.execute("SELECT id, titulo, link_ref, data_envio, prioridade, observacao FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
+            p_br = c.fetchall(); conn.close()
+            for pb in p_br:
+                b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
+                classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
+                tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
+                st.markdown(f'<div class="card-pauta {classe_cor}"><span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br><p style="font-size: 1.3rem; font-weight: bold; margin-top:10px;">{b_tit}</p></div>', unsafe_allow_html=True)
+                if b_obs: st.markdown(f'<div class="obs-box"><b>Dica do Juan:</b> {b_obs}</div>', unsafe_allow_html=True)
+                if b_link: st.link_button("🔗 VER REFERÊNCIA", b_link, use_container_width=True)
+                if st.button("✅ CONCLUÍDO", key=f"ok_{b_id}", use_container_width=True, type="primary"):
+                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(b_id,)); conn.commit(); conn.close(); st.rerun()
+                st.divider()
+
+        with tabs_b[1]: # Tarefas Internas (Manutenção do Site)
+            st.subheader("🛠️ Tarefas de Manutenção")
+            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+            c.execute("SELECT * FROM tarefas_internas WHERE status = 'Pendente'")
+            tarefas_b = c.fetchall(); conn.close()
+            if not tarefas_b: st.success("Nenhuma tarefa de manutenção pendente!")
+            for tb in tarefas_b:
+                with st.expander(f"📌 {tb[1]}", expanded=True):
+                    if st.button("Marcar como Feito", key=f"done_{tb[0]}"):
+                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM tarefas_internas WHERE id=?", (tb[0],)); conn.commit(); conn.close(); st.rerun()
+
+        with tabs_b[2]: # Checklist de Qualidade
+            st.subheader("📋 Checklist de Postagem")
+            st.info("Antes de clicar em 'Publicar' no site, verifique os itens abaixo:")
+            st.checkbox("O título está chamativo e sem erros?")
+            st.checkbox("A categoria da notícia está correta?")
+            st.checkbox("A imagem de destaque tem boa qualidade?")
+            st.checkbox("As tags (SEO) foram preenchidas?")
+            st.checkbox("Os links internos (Leia também) foram adicionados?")
+
+        with tabs_b[3]: # Gerador de Títulos SEO
+            st.subheader("🚀 Otimizador de Títulos (SEO)")
+            t_base = st.text_input("Digite o título simples da notícia:")
+            if t_base:
+                st.write("💡 **Sugestões para atrair mais cliques:**")
+                st.success(f"🔥 **Urgente:** {t_base} - Veja os detalhes!")
+                st.success(f"❓ Saiba tudo sobre: {t_base}")
+                st.success(f"📍 Toledo: {t_base} (Entenda o caso)")
+                st.success(f"😱 O que aconteceu em {t_base}? Confira agora!")

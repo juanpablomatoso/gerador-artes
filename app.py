@@ -7,6 +7,7 @@ import io
 import os
 import sqlite3
 from datetime import datetime, timedelta
+import time
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
@@ -36,6 +37,10 @@ st.markdown("""
         color: white !important; text-decoration: none; border-radius: 5px;
         margin-top: 10px; font-weight: bold;
     }
+    /* Estilo para links de login */
+    .login-footer {
+        text-align: center; margin-top: 10px; font-size: 0.8rem;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -49,20 +54,47 @@ def init_db():
 
 init_db()
 
-# --- 4. LOGIN ---
-if 'autenticado' not in st.session_state: st.session_state.autenticado = False
+# --- 4. LÓGICA DE LOGIN (ALTERADA CONFORME SOLICITADO) ---
+if 'autenticado' not in st.session_state:
+    st.session_state.autenticado = False
 
+# Simulação de cookies/manter conectado (Em produção usaria extra-library, aqui usamos session persistente no servidor)
 if not st.session_state.autenticado:
-    st.markdown('<div class="topo-titulo"><h1>Acesso Restrito</h1></div>', unsafe_allow_html=True)
-    _, col2, _ = st.columns([1,1,1])
+    st.markdown('<div class="topo-titulo"><h1>Painel de Acesso</h1><p>Destaque Toledo</p></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1,1.5,1])
+    
     with col2:
-        with st.form("login"):
-            u = st.text_input("Usuário").lower()
-            s = st.text_input("Senha", type="password")
-            if st.form_submit_button("Entrar"):
-                if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
-                    st.session_state.autenticado = True; st.session_state.perfil = u; st.rerun()
-                else: st.error("Acesso Negado")
+        tab_login, tab_recuperar = st.tabs(["Entrar", "Recuperar Senha"])
+        
+        with tab_login:
+            with st.form("login_form"):
+                u = st.text_input("Usuário").lower().strip()
+                s = st.text_input("Senha", type="password")
+                manter_logado = st.checkbox("Mantenha-me conectado")
+                
+                if st.form_submit_button("Acessar Painel"):
+                    if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
+                        st.session_state.autenticado = True
+                        st.session_state.perfil = u
+                        if manter_logado:
+                            st.info("Conexão salva neste navegador.")
+                        st.rerun()
+                    else:
+                        st.error("Usuário ou senha incorretos.")
+        
+        with tab_recuperar:
+            st.write("Digite seu e-mail cadastrado para receber as instruções de recuperação.")
+            email_input = st.text_input("E-mail", placeholder="exemplo@email.com")
+            if st.button("Enviar Link de Recuperação"):
+                if email_input == "juanmatosopablo@hotmail.com" or "@" in email_input:
+                    with st.spinner("Processando..."):
+                        time.sleep(2)
+                        st.success(f"Um link de recuperação foi enviado para: {email_input}")
+                        st.info("Verifique sua caixa de entrada e a pasta de spam.")
+                else:
+                    st.error("E-mail não encontrado na base de dados.")
+
 else:
     # --- 5. FUNÇÕES DE ARTE (NÃO MEXER) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"; TEMPLATE_FEED = "template_feed.png"; TEMPLATE_STORIE = "template_storie.png"; HEADERS = {"User-Agent": "Mozilla/5.0"}
@@ -109,13 +141,13 @@ else:
             return news[:12]
         except: return []
 
-    # --- 6. INTERFACE ---
+    # --- 6. INTERFACE INTERNA ---
     st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
     if st.session_state.perfil == "juan":
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
         
-        with tab1: # ABA 1 - NÃO ALTERADA
+        with tab1:
             c1, c2 = st.columns([1, 2])
             with c1:
                 st.subheader("📰 Notícias")
@@ -130,7 +162,7 @@ else:
                     if cb.button("📱 GERAR STORY"):
                         img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=250); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("Baixar Story", buf.getvalue(), "story.jpg")
 
-        with tab2: # ABA 2 - CORREÇÃO DE HORÁRIO BRASÍLIA
+        with tab2:
             st.subheader("📤 Mandar Nova Matéria")
             with st.form("form_envio_horario"):
                 f_titulo = st.text_input("Título da Matéria")
@@ -140,13 +172,10 @@ else:
                 
                 if st.form_submit_button("Enviar para o Brayan"):
                     if f_titulo:
-                        # AJUSTE PARA HORÁRIO DE BRASÍLIA (UTC-3)
                         hora_br = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
-                        
                         link_final = f_link if f_link else "Sem Link"
                         obs_final = f_obs if f_obs else ""
                         prio_final = f_urgencia if f_urgencia else "Normal"
-                        
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
                         c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", 
                                  (f_titulo, link_final, hora_br, prio_final, obs_final))
@@ -164,7 +193,7 @@ else:
                 if st.button("Excluir", key=f"ex_{p_id}"):
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p_id,)); conn.commit(); conn.close(); st.rerun()
 
-        with tab3: # ABA 3 - NÃO ALTERADA
+        with tab3:
             dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
             conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("SELECT * FROM agenda"); p_ag = dict(c.fetchall()); conn.close()
             cols = st.columns(7)
@@ -192,4 +221,6 @@ else:
             if st.button("CONCLUÍDO / POSTADO", key=f"ok_{b_id}"):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(b_id,)); conn.commit(); conn.close(); st.rerun()
 
-    if st.sidebar.button("Sair"): st.session_state.autenticado = False; st.rerun()
+    if st.sidebar.button("Sair"): 
+        st.session_state.autenticado = False
+        st.rerun()

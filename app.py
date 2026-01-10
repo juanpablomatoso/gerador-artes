@@ -897,16 +897,188 @@ else:
         # ============================
         with tab_b2:
             st.markdown(
-                '<p class="descricao-aba">Agenda editorial compartilhada.</p>',
+                '<p class="descricao-aba">Agenda editorial compartilhada – visualize e cadastre tarefas.</p>',
                 unsafe_allow_html=True,
             )
 
-            # Aqui você mantém exatamente a AGENDA DO BRAYAN
-            # que você já tem funcionando (não precisa alterar)
+            hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
+            hoje_iso = hoje_dt.strftime("%Y-%m-%d")
 
-            st.info("📌 Use esta aba para cadastrar e acompanhar tarefas da agenda.")
+            col_f1, col_f2 = st.columns([1.2, 1])
+            with col_f1:
+                filtro_dt = st.date_input(
+                    "Data de referência",
+                    value=hoje_dt,
+                    key="br_ag_filtro_dt"
+                )
+            with col_f2:
+                visao = st.selectbox(
+                    "Visualização",
+                    ["Dia", "Semana", "Todas"],
+                    index=1,
+                    key="br_ag_visao"
+                )
 
-            # (o código da agenda do Brayan que você já colou permanece aqui)
+            # ======================
+            # ➕ NOVA TAREFA (BRAYAN)
+            # ======================
+            with st.form("form_agenda_brayan"):
+                col_a, col_b = st.columns([1.3, 1])
+
+                with col_a:
+                    a_titulo = st.text_input(
+                        "Título da tarefa",
+                        key="br_ag_titulo"
+                    )
+                    a_desc = st.text_area(
+                        "Descrição (opcional)",
+                        height=90,
+                        key="br_ag_desc"
+                    )
+
+                with col_b:
+                    a_data = st.date_input(
+                        "Data da tarefa",
+                        value=filtro_dt,
+                        key="br_ag_data"
+                    )
+                    a_status = st.selectbox(
+                        "Status",
+                        ["Pendente", "Concluído"],
+                        index=0,
+                        key="br_ag_status"
+                    )
+
+                if st.form_submit_button("➕ ADICIONAR À AGENDA", use_container_width=True):
+                    if a_titulo:
+                        agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute(
+                            """
+                            INSERT INTO agenda_itens
+                            (data_ref, titulo, descricao, status, criado_por, criado_em)
+                            VALUES (?, ?, ?, ?, 'brayan', ?)
+                            """,
+                            (
+                                a_data.strftime("%Y-%m-%d"),
+                                a_titulo,
+                                a_desc,
+                                a_status,
+                                agora,
+                            ),
+                        )
+                        conn.commit()
+                        conn.close()
+                        st.success("Tarefa adicionada.")
+                        st.rerun()
+                    else:
+                        st.warning("Informe o título da tarefa.")
+
+            st.markdown("---")
+            st.subheader("📌 Tarefas da Agenda")
+
+            # ----------------------
+            # FILTRO SQL
+            # ----------------------
+            params = []
+            where = "1=1"
+
+            if visao == "Dia":
+                where += " AND data_ref = ?"
+                params.append(filtro_dt.strftime("%Y-%m-%d"))
+            elif visao == "Semana":
+                inicio = filtro_dt - timedelta(days=filtro_dt.weekday())
+                fim = inicio + timedelta(days=6)
+                where += " AND data_ref BETWEEN ? AND ?"
+                params.extend([inicio.strftime("%Y-%m-%d"), fim.strftime("%Y-%m-%d")])
+
+            conn = get_conn()
+            c = conn.cursor()
+            c.execute(
+                f"""
+                SELECT id, data_ref, titulo, descricao, status, criado_por
+                FROM agenda_itens
+                WHERE {where}
+                ORDER BY data_ref ASC, id DESC
+                """,
+                tuple(params),
+            )
+            itens = c.fetchall()
+            conn.close()
+
+            if not itens:
+                st.info("Nenhuma tarefa encontrada para este período.")
+            else:
+                for tid, data_ref, titulo, descricao, status, autor in itens:
+                    pode_apagar = autor == "brayan"
+
+                    if status == "Concluído":
+                        cor = "#198754"
+                        fundo = "#f1fff6"
+                        tag = "✅ CONCLUÍDO"
+                    elif data_ref < hoje_iso:
+                        cor = "#dc3545"
+                        fundo = "#fff5f5"
+                        tag = "⛔ ATRASADO"
+                    elif data_ref == hoje_iso:
+                        cor = "#ffc107"
+                        fundo = "#fffdf5"
+                        tag = "📌 HOJE"
+                    else:
+                        cor = "#0d6efd"
+                        fundo = "#f3f7ff"
+                        tag = "🗓️ PENDENTE"
+
+                    data_br = datetime.strptime(data_ref, "%Y-%m-%d").strftime("%d/%m/%Y")
+
+                    st.markdown(
+                        f"""
+                        <div style="background:{fundo}; padding:14px; border-radius:12px; border-left:6px solid {cor}; margin-bottom:10px;">
+                            <div style="font-size:0.85rem;"><b>{data_br}</b> • {tag}</div>
+                            <div style="font-size:1.15rem; font-weight:700;">{titulo}</div>
+                            <div style="font-size:0.8rem; color:#666;">Criado por: {autor}</div>
+                        </div>
+                        """,
+                        unsafe_allow_html=True,
+                    )
+
+                    if descricao:
+                        st.markdown(f"<div class='obs-box'>{descricao}</div>", unsafe_allow_html=True)
+
+                    col1, col2, col3 = st.columns(3)
+
+                    if col1.button(
+                        "✅ Concluir" if status == "Pendente" else "↩️ Reabrir",
+                        key=f"br_ag_ok_{tid}"
+                    ):
+                        novo_status = "Concluído" if status == "Pendente" else "Pendente"
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute(
+                            "UPDATE agenda_itens SET status=? WHERE id=?",
+                            (novo_status, tid)
+                        )
+                        conn.commit()
+                        conn.close()
+                        st.rerun()
+
+                    if col2.button("✏️ Editar", key=f"br_ag_edit_{tid}", disabled=True):
+                        pass
+
+                    if col3.button(
+                        "🗑️ Excluir",
+                        key=f"br_ag_del_{tid}",
+                        disabled=not pode_apagar
+                    ):
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
+                        conn.commit()
+                        conn.close()
+                        st.rerun()
+
+                    st.markdown("---")
 
         # ============================
         # ℹ️ ABA 3 – AVISOS
@@ -932,6 +1104,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

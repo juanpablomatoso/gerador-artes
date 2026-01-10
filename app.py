@@ -554,7 +554,34 @@ else:
                         st.rerun()
 
         with tab3:
-            st.info("A aba AGENDA está mantida como no seu projeto (tabela 'agenda'). Se quiser, posso finalizar a UI dela.")
+            st.markdown('<p class="descricao-aba">Organização semanal de postagens e eventos.</p>', unsafe_allow_html=True)
+            
+            dias_semana = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
+            
+            # Criar colunas para os dias da semana
+            cols_agenda = st.columns(len(dias_semana))
+            
+            for i, dia in enumerate(dias_semana):
+                with cols_agenda[i]:
+                    # 1. Buscar texto salvo no banco de dados
+                    conn = get_conn()
+                    c = conn.cursor()
+                    c.execute("SELECT pauta FROM agenda WHERE dia=?", (dia,))
+                    row = c.fetchone()
+                    valor_atual = row[0] if row else ""
+                    conn.close()
+
+                    # 2. Área de texto para edição
+                    novo_texto = st.text_area(f"📅 {dia}", value=valor_atual, height=250, key=f"agenda_{dia}")
+
+                    # 3. Salvar automaticamente se houver mudança
+                    if novo_texto != valor_atual:
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?, ?)", (dia, novo_texto))
+                        conn.commit()
+                        conn.close()
+                        st.toast(f"Salvo: {dia}", icon="💾")
 
     else:
         # ============================================================
@@ -629,5 +656,6 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 

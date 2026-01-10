@@ -11,7 +11,7 @@ from datetime import datetime
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
-# --- 2. ESTILIZAÇÃO CSS (VOLTANDO AO PADRÃO ESTÁVEL) ---
+# --- 2. ESTILIZAÇÃO CSS (ESTÁVEL) ---
 st.markdown("""
     <style>
     .topo-titulo {
@@ -32,7 +32,7 @@ st.markdown("""
         margin-top: 10px; font-size: 0.9rem;
     }
     .btn-link {
-        display: inline-block; padding: 8px 15px; background-color: #007bff;
+        display: inline-block; padding: 10px 20px; background-color: #007bff;
         color: white !important; text-decoration: none; border-radius: 5px;
         margin-top: 10px; font-weight: bold;
     }
@@ -62,8 +62,9 @@ if not st.session_state.autenticado:
             if st.form_submit_button("Entrar"):
                 if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
                     st.session_state.autenticado = True; st.session_state.perfil = u; st.rerun()
+                else: st.error("Acesso Negado")
 else:
-    # --- 5. FUNÇÕES DE ARTE (INTOCÁVEIS) ---
+    # --- 5. FUNÇÕES DE ARTE (BLOQUEADO - NÃO MEXER) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"; TEMPLATE_FEED = "template_feed.png"; TEMPLATE_STORIE = "template_storie.png"; HEADERS = {"User-Agent": "Mozilla/5.0"}
     
     def processar_artes_integrado(url, tipo_solicitado):
@@ -114,7 +115,7 @@ else:
     if st.session_state.perfil == "juan":
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
         
-        with tab1:
+        with tab1: # ABA 1 - NÃO ALTERADA
             c1, c2 = st.columns([1, 2])
             with c1:
                 st.subheader("📰 Notícias")
@@ -129,22 +130,34 @@ else:
                     if cb.button("📱 GERAR STORY"):
                         img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=250); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("Baixar Story", buf.getvalue(), "story.jpg")
 
-        with tab2:
-            with st.form("envio"):
-                tf = st.text_input("Título"); lf = st.text_input("Link"); obs = st.text_area("Observação"); p_op = st.selectbox("Prioridade", ["Normal", "URGENTE", "Programar"])
-                if st.form_submit_button("Mandar"):
-                    h = datetime.now().strftime("%H:%M")
-                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-                    c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", (tf, lf, h, p_op, obs))
-                    conn.commit(); conn.close(); st.rerun()
-            
-            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("SELECT * FROM pautas_trabalho ORDER BY id DESC LIMIT 5"); p_hist = c.fetchall(); conn.close()
-            for p in p_hist:
-                st.markdown(f"<div class='card-pauta'><b>[{p[5]}]</b> {p[1]}</div>", unsafe_allow_html=True)
-                if st.button("Excluir", key=f"del_{p[0]}"):
-                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
+        with tab2: # ABA 2 - ÚNICA ALTERADA
+            st.subheader("📤 Mandar Nova Matéria")
+            with st.form("form_envio_final"):
+                f_titulo = st.text_input("Título da Matéria")
+                f_link = st.text_input("Link da Matéria")
+                f_obs = st.text_area("Observação / Instrução")
+                f_urgencia = st.selectbox("Urgência", ["Normal", "URGENTE", "Programar"])
+                
+                if st.form_submit_button("Enviar para o Brayan"):
+                    if f_titulo and f_link:
+                        hora_atual = datetime.now().strftime("%H:%M")
+                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+                        c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", 
+                                 (f_titulo, f_link, hora_atual, f_urgencia, f_obs))
+                        conn.commit(); conn.close(); st.success("Enviado!"); st.rerun()
+                    else: st.warning("Preencha Título e Link!")
 
-        with tab3:
+            st.markdown("---")
+            st.subheader("Histórico Recente")
+            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+            c.execute("SELECT * FROM pautas_trabalho ORDER BY id DESC LIMIT 5"); p_hist = c.fetchall(); conn.close()
+            for p in p_hist:
+                with st.container():
+                    st.markdown(f"<div class='card-pauta'><b>[{p[5]}]</b> - {p[4]}<br>{p[1]}<br><small>Status: {p[3]}</small></div>", unsafe_allow_html=True)
+                    if st.button("Excluir", key=f"ex_{p[0]}"):
+                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
+
+        with tab3: # ABA 3 - NÃO ALTERADA
             dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
             conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("SELECT * FROM agenda"); p_ag = dict(c.fetchall()); conn.close()
             cols = st.columns(7)
@@ -154,21 +167,21 @@ else:
                     if txt != p_ag.get(d,""):
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,txt)); conn.commit(); conn.close(); st.toast(f"Salvo {d}")
 
-    else: # PAINEL BRAYAN
-        st.subheader("📋 Sua Fila")
+    else: # PAINEL BRAYAN - TAMBÉM ATUALIZADO PARA RECEBER OS DADOS CERTOS
+        st.subheader("📋 Sua Fila de Postagens")
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
         c.execute("SELECT * FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
         p_br = c.fetchall(); conn.close()
         for pb in p_br:
             st.markdown(f"""
                 <div class="card-pauta">
-                    <span class="tag-status">{pb[5]}</span> | {pb[4]}<br>
-                    <p style='font-size: 1.3rem; font-weight: bold;'>{pb[1]}</p>
-                    {f'<div class="obs-box"><b>Obs:</b> {pb[6]}</div>' if pb[6] else ''}
+                    <span class="tag-status">{pb[5]}</span> | Enviado às: {pb[4]}<br>
+                    <p style='font-size: 1.3rem; font-weight: bold; margin-top:10px;'>{pb[1]}</p>
+                    {f'<div class="obs-box"><b>Instrução:</b> {pb[6]}</div>' if pb[6] else ''}
                     <a href='{pb[2]}' target='_blank' class='btn-link'>🔗 ABRIR MATÉRIA</a>
                 </div>
             """, unsafe_allow_html=True)
-            if st.button("CONCLUÍDO", key=f"ok_{pb[0]}"):
+            if st.button("CONCLUÍDO / POSTADO", key=f"ok_{pb[0]}"):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(pb[0],)); conn.commit(); conn.close(); st.rerun()
 
     if st.sidebar.button("Sair"): st.session_state.autenticado = False; st.rerun()

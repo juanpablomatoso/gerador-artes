@@ -1027,13 +1027,21 @@ else:
                         st.session_state[f"br_edit_ag_{tid}"] = True
 
                 with col3:
-                    if st.button("🗑️ Excluir", key=f"br_ag_excluir_{tid}", use_container_width=True):
-                        conn = get_conn()
-                        c = conn.cursor()
-                        c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
-                        conn.commit()
-                        conn.close()
-                        st.rerun()
+                    if criado_por == "brayan":
+                        if st.button(
+                            "🗑️ Excluir",
+                            key=f"br_ag_excluir_{tid}",
+                            use_container_width=True
+                        ):
+                            conn = get_conn()
+                            c = conn.cursor()
+                            c.execute(
+                                "DELETE FROM agenda_itens WHERE id=?",
+                                (tid,)
+                            )
+                            conn.commit()
+                            conn.close()
+                            st.rerun()
 
                 if st.session_state.get(f"br_edit_ag_{tid}", False):
                     with st.form(f"form_edit_ag_br_{tid}"):
@@ -1093,3 +1101,4 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+

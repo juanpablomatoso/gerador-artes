@@ -166,16 +166,26 @@ def get_requests_session(headers: dict):
 SESSION = get_requests_session(HEADERS)
 
 def safe_get_text(url: str) -> str:
-    r = SESSION.get(url, timeout=REQUEST_TIMEOUT)
-    r.raise_for_status()
-    if r.encoding is None:
-        r.encoding = "utf-8"
-    return r.text
+    try:
+        r = SESSION.get(url, timeout=REQUEST_TIMEOUT, allow_redirects=True)
+        r.raise_for_status()
+        if not r.encoding:
+            r.encoding = r.apparent_encoding or "utf-8"
+        return r.text
+    except requests.exceptions.Timeout:
+        raise RuntimeError("Tempo limite excedido ao acessar a página.")
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Falha HTTP ao acessar a página: {e}")
 
 def safe_get_bytes(url: str) -> bytes:
-    r = SESSION.get(url, timeout=REQUEST_TIMEOUT)
-    r.raise_for_status()
-    return r.content
+    try:
+        r = SESSION.get(url, timeout=REQUEST_TIMEOUT, stream=True, allow_redirects=True)
+        r.raise_for_status()
+        return r.content
+    except requests.exceptions.Timeout:
+        raise RuntimeError("Tempo limite excedido ao baixar a imagem.")
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Falha HTTP ao baixar a imagem: {e}")
 
 # ============================================================
 # 7) SCRAPING + ARTE (ROBUSTO)
@@ -629,6 +639,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

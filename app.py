@@ -426,7 +426,7 @@ if not st.session_state.autenticado:
                 if u in ("juan", "brayan") and verify_password(s, AUTH_HASHES.get(u, "")):
                     st.session_state.autenticado = True
                     st.session_state.perfil = u
-                    st.session_state.manter_sessao = manter_conectado
+                    st.session_state["login_em"] = datetime.utcnow().timestamp()
                     st.toast(f"Bem-vindo, {u.capitalize()}!", icon="✅")
                     st.rerun()
                 else:
@@ -1093,3 +1093,4 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+

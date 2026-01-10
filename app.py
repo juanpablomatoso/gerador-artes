@@ -453,7 +453,7 @@ else:
     if st.session_state.perfil == "juan":
 
         # ============================================================
-        # DASHBOARD INICIAL – RESUMO DO DIA
+        # DASHBOARD INICIAL – RESUMO DO DIA (SEM HTML)
         # ============================================================
         hoje_dt = datetime.utcnow() - timedelta(hours=3)
         hoje_br = hoje_dt.strftime("%d/%m/%Y")
@@ -462,31 +462,35 @@ else:
         c = conn.cursor()
 
         c.execute(
-            """
-            SELECT COUNT(*) FROM agenda
-            WHERE dia = ?
-            """,
-            (hoje_br,),
+            "SELECT COUNT(*) FROM agenda WHERE dia = ?",
+            (hoje_br,)
         )
         tarefas_hoje = c.fetchone()[0]
 
         conn.close()
 
-        st.markdown(
-            f"""
-            <div style="background:white; padding:22px; border-radius:16px;
-            box-shadow:0 4px 14px rgba(0,0,0,0.08); margin-bottom:25px;">
-                <h3 style="margin:0; color:#004a99;">📊 Painel do Dia – {hoje_br}</h3>
+        st.subheader(f"📊 Painel do Dia – {hoje_br}")
 
-                <div style="display:flex; gap:40px; margin-top:15px;">
-                    <div>
-                        <b style="font-size:1.8rem;">{tarefas_hoje}</b><br>
-                        <span style="color:#555;">Lembretes na agenda de hoje</span>
-                    </div>
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+        col1, col2 = st.columns(2)
+
+        with col1:
+            if tarefas_hoje == 0:
+                st.success("✅ Tudo em ordem! Nenhuma tarefa ou lembrete para hoje.")
+            else:
+                st.warning(f"⚠️ Você tem **{tarefas_hoje}** tarefa(s) na agenda para hoje.")
+
+        with col2:
+            st.info("📌 Use a aba **AGENDA** para cadastrar ou revisar lembretes.")
+
+        st.markdown("---")
+
+        # ============================================================
+        # INTERFACE PRINCIPAL
+        # ============================================================
+        st.markdown('<div class="boas-vindas">Bem-vindo, Juan!</div>', unsafe_allow_html=True)
+
+        tab1, tab2, tab3 = st.tabs(
+            ["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"]
         )
 
         # ============================================================
@@ -1145,5 +1149,6 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 

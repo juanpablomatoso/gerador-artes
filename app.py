@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
-# --- 2. ESTILIZAÇÃO CSS PROFISSIONAL ---
+# --- 2. ESTILIZAÇÃO CSS (TODAS AS CORES RESTAURADAS) ---
 st.markdown("""
     <style>
     .stApp { background-color: #f8f9fa; }
@@ -21,26 +21,16 @@ st.markdown("""
         color: white; border-radius: 15px; margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+    /* Estilo dos Cards */
     .card-pauta {
         background-color: white; padding: 20px; border-radius: 12px;
         border-left: 6px solid #004a99; margin-bottom: 15px;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    .card-urgente { border-left: 6px solid #dc3545; background-color: #fff5f5; }
-    .card-programar { border-left: 6px solid #ffc107; background-color: #fffdf5; }
+    .card-urgente { border-left: 6px solid #dc3545 !important; background-color: #fff5f5 !important; }
+    .card-programar { border-left: 6px solid #ffc107 !important; background-color: #fffdf5 !important; }
     
-    /* Avatar e Perfil */
-    .perfil-container {
-        display: flex; align-items: center; gap: 10px; padding: 10px;
-        background: white; border-radius: 10px; margin-bottom: 20px;
-        border: 1px solid #ddd;
-    }
-    .avatar-img {
-        width: 50px; height: 50px; border-radius: 50%;
-        object-fit: cover; border: 2px solid #004a99;
-    }
-    .perfil-nome { font-weight: bold; color: #333; font-size: 0.9rem; }
-    
+    /* Tags de Status */
     .tag-status {
         padding: 4px 12px; border-radius: 20px; font-size: 0.75rem;
         font-weight: bold; text-transform: uppercase;
@@ -49,14 +39,45 @@ st.markdown("""
     .tag-normal { background-color: #e9ecef; color: #495057; }
     .tag-programar { background-color: #ffc107; color: #000; }
     
+    /* Caixa de Observação */
     .obs-box {
         background-color: #e7f1ff; padding: 12px; border-radius: 8px;
         border: 1px dashed #004a99; margin-top: 10px; margin-bottom: 15px; font-style: italic;
     }
+
+    /* Perfil na Sidebar */
+    .perfil-container {
+        display: flex; align-items: center; gap: 12px; padding: 15px;
+        background: white; border-radius: 12px; margin-bottom: 20px;
+        border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .avatar-img {
+        width: 55px; height: 55px; border-radius: 50%;
+        object-fit: cover; border: 2px solid #004a99;
+    }
+    .perfil-info { line-height: 1.2; }
+    .perfil-nome { font-weight: bold; color: #333; font-size: 1rem; display: block; }
+    .perfil-cargo { color: #888; font-size: 0.75rem; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. BANCO DE DADOS ---
+# --- 3. USUÁRIOS E FOTOS ---
+USUARIOS = {
+    "juan": {
+        "nome": "Juan Matos", 
+        "cargo": "Administrador",
+        "senha": "juan123", 
+        "foto": "https://www.w3schools.com/howto/img_avatar.png" # Troque pelo seu arquivo juan.jpg
+    },
+    "brayan": {
+        "nome": "Brayan Editor", 
+        "cargo": "Editor de Conteúdo",
+        "senha": "brayan123", 
+        "foto": "https://www.w3schools.com/howto/img_avatar2.png" # Troque pelo seu arquivo brayan.jpg
+    }
+}
+
+# --- 4. BANCO DE DADOS ---
 def init_db():
     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS agenda (dia TEXT PRIMARY KEY, pauta TEXT)')
@@ -66,15 +87,9 @@ def init_db():
 
 init_db()
 
-# --- 4. LÓGICA DE USUÁRIOS ---
-USUARIOS = {
-    "juan": {"nome": "Juan Matos", "senha": "juan123", "foto": "https://www.w3schools.com/howto/img_avatar.png"},
-    "brayan": {"nome": "Brayan Editor", "senha": "brayan123", "foto": "https://www.w3schools.com/howto/img_avatar2.png"}
-}
-
+# --- 5. LOGIN ---
 if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 
-# --- TELA DE LOGIN ---
 if not st.session_state.autenticado:
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel Administrativo</p></div>', unsafe_allow_html=True)
     _, col2, _ = st.columns([1, 1.2, 1])
@@ -82,15 +97,30 @@ if not st.session_state.autenticado:
         with st.form("login_direto"):
             u_input = st.text_input("Usuário").lower().strip()
             s_input = st.text_input("Senha", type="password")
-            manter = st.checkbox("Mantenha-me conectado") # BOTÃO VOLTOU AQUI
+            st.checkbox("Mantenha-me conectado", value=True) # Checkbox adicionado
             if st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True):
                 if u_input in USUARIOS and s_input == USUARIOS[u_input]["senha"]:
                     st.session_state.autenticado = True
                     st.session_state.perfil = u_input
                     st.rerun()
-                else: st.error("Usuário ou senha incorretos.")
+                else: st.error("Acesso negado.")
 else:
-    # --- 5. FUNÇÕES DE ARTE (BLOQUEADAS) ---
+    # --- BARRA LATERAL COM PERFIL ---
+    user = USUARIOS[st.session_state.perfil]
+    with st.sidebar:
+        st.markdown(f"""
+            <div class="perfil-container">
+                <img src="{user['foto']}" class="avatar-img">
+                <div class="perfil-info">
+                    <span class="perfil-nome">{user['nome']}</span>
+                    <span class="perfil-cargo">{user['cargo']}</span>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+        if st.button("🚪 Sair do Sistema", use_container_width=True):
+            st.session_state.autenticado = False; st.rerun()
+
+    # --- 6. FUNÇÕES DE ARTE (BLOQUEADAS) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"; TEMPLATE_FEED = "template_feed.png"; TEMPLATE_STORIE = "template_storie.png"; HEADERS = {"User-Agent": "Mozilla/5.0"}
     
     def processar_artes_integrado(url, tipo_solicitated):
@@ -130,27 +160,11 @@ else:
             res = requests.get("https://www.destaquetoledo.com.br/", headers=HEADERS, timeout=10).text; soup = BeautifulSoup(res, "html.parser"); news = []
             for a in soup.find_all("a", href=True):
                 if ".html" in a['href'] and "/20" in a['href']:
-                    t = a.get_text(strip=True)
-                    if len(t) > 25: news.append({"t": t, "u": a['href']})
+                    t = a.get_text(strip=True); news.append({"t": t, "u": a['href']})
             return news[:12]
         except: return []
 
-    # --- 6. BARRA LATERAL COM PERFIL E FOTO ---
-    dados_user = USUARIOS[st.session_state.perfil]
-    with st.sidebar:
-        st.markdown(f"""
-            <div class="perfil-container">
-                <img src="{dados_user['foto']}" class="avatar-img">
-                <div class="perfil-nome">
-                    <small>Conectado como:</small><br>
-                    {dados_user['nome']}
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        if st.button("🚪 Sair do Sistema", use_container_width=True):
-            st.session_state.autenticado = False; st.rerun()
-
-    # --- INTERFACE INTERNA ---
+    # --- INTERFACE PRINCIPAL ---
     st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
     if st.session_state.perfil == "juan":
@@ -159,66 +173,48 @@ else:
         with tab1:
             c1, col_preview = st.columns([1, 2])
             with c1:
-                st.subheader("📰 Notícias Recentes")
+                st.subheader("📰 Notícias")
                 for i, item in enumerate(buscar_ultimas()):
-                    if st.button(item['t'], key=f"btn_{i}", use_container_width=True): 
-                        st.session_state.url_atual = item['u']
+                    if st.button(item['t'], key=f"btn_{i}", use_container_width=True): st.session_state.url_atual = item['u']
             with col_preview:
                 url_f = st.text_input("Link da Matéria:", value=st.session_state.get('url_atual', ''))
                 if url_f:
                     ca, cb = st.columns(2)
-                    if ca.button("🖼️ GERAR FEED", use_container_width=True, type="primary"):
-                        img = processar_artes_integrado(url_f, "FEED"); st.image(img); buf=io.BytesIO(); img.save(buf,"JPEG")
-                        st.download_button("📥 BAIXAR FEED", buf.getvalue(), "feed.jpg", use_container_width=True)
-                    if cb.button("📱 GERAR STORY", use_container_width=True):
-                        img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=280); buf=io.BytesIO(); img.save(buf,"JPEG")
-                        st.download_button("📥 BAIXAR STORY", buf.getvalue(), "story.jpg", use_container_width=True)
+                    if ca.button("🖼️ FEED", use_container_width=True, type="primary"):
+                        img = processar_artes_integrado(url_f, "FEED"); st.image(img); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("📥 BAIXAR", buf.getvalue(), "feed.jpg")
+                    if cb.button("📱 STORY", use_container_width=True):
+                        img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=280); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("📥 BAIXAR", buf.getvalue(), "story.jpg")
 
         with tab2:
-            st.subheader("📤 Enviar para o Brayan")
-            with st.form("form_envio"):
-                f_titulo = st.text_input("Título da Matéria")
-                f_link = st.text_input("Link da Matéria")
-                f_obs = st.text_area("Instruções")
+            with st.form("envio"):
+                f_titulo = st.text_input("Título"); f_link = st.text_input("Link"); f_obs = st.text_area("Instruções")
                 f_urgencia = st.select_slider("Prioridade", options=["Normal", "Programar", "URGENTE"])
-                if st.form_submit_button("🚀 ENVIAR", use_container_width=True):
-                    if f_titulo:
-                        hora_br = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
-                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-                        c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", (f_titulo, f_link, hora_br, f_urgencia, f_obs))
-                        conn.commit(); conn.close(); st.rerun()
+                if st.form_submit_button("🚀 ENVIAR PAUTA"):
+                    hora_br = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
+                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+                    c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", (f_titulo, f_link, hora_br, f_urgencia, f_obs))
+                    conn.commit(); conn.close(); st.rerun()
 
-            st.markdown("---")
-            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-            c.execute("SELECT id, titulo, prioridade, data_envio FROM pautas_trabalho ORDER BY id DESC LIMIT 6")
-            p_hist = c.fetchall(); conn.close()
-            cols_h = st.columns(3)
-            for i, p in enumerate(p_hist):
-                with cols_h[i % 3]:
-                    st.markdown(f"<div class='card-pauta'><b>{p[1]}</b><br><small>{p[3]}</small></div>", unsafe_allow_html=True)
-                    if st.button("Remover", key=f"ex_{p[0]}"):
-                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
-
-        with tab3:
-            dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
-            conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("SELECT * FROM agenda"); p_ag = dict(c.fetchall()); conn.close()
-            cols = st.columns(7)
-            for i, d in enumerate(dias):
-                with cols[i]:
-                    st.markdown(f"<div style='text-align:center; background:#004a99; color:white; border-radius:5px; padding:5px; margin-bottom:5px;'>{d}</div>", unsafe_allow_html=True)
-                    txt = st.text_area(d, value=p_ag.get(d,""), height=250, label_visibility="collapsed")
-                    if txt != p_ag.get(d,""):
-                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,txt)); conn.commit(); conn.close(); st.toast(f"Salvo {d}")
-
-    else: # PAINEL BRAYAN
-        st.subheader("📥 Pautas do Dia")
+    else: # PAINEL BRAYAN (CORES RESTAURADAS AQUI)
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
         c.execute("SELECT id, titulo, link_ref, data_envio, prioridade, observacao FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
         p_br = c.fetchall(); conn.close()
+        
         for pb in p_br:
             b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
-            st.markdown(f'<div class="card-pauta"><b>{b_tit}</b><br><small>{b_prio} | {b_hora}</small></div>', unsafe_allow_html=True)
-            if b_obs: st.markdown(f'<div class="obs-box">{b_obs}</div>', unsafe_allow_html=True)
+            # Lógica de cores restaurada
+            classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
+            tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
+            
+            st.markdown(f"""
+                <div class="card-pauta {classe_cor}">
+                    <span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br>
+                    <p style='font-size: 1.4rem; font-weight: bold; margin: 10px 0;'>{b_tit}</p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            if b_obs: st.markdown(f'<div class="obs-box"><b>💡 Instrução:</b><br>{b_obs}</div>', unsafe_allow_html=True)
             if b_link: st.link_button("🔗 ABRIR MATÉRIA", b_link, use_container_width=True)
             if st.button("✅ POSTADO", key=f"ok_{b_id}", use_container_width=True, type="primary"):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(b_id,)); conn.commit(); conn.close(); st.rerun()
+            st.markdown("---")

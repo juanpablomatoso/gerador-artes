@@ -137,16 +137,13 @@ def init_db():
 
 c.execute(
     """
-    CREATE TABLE IF NOT EXISTS agenda_itens (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        data_ref TEXT,
-        titulo TEXT,
-        descricao TEXT,
-        status TEXT,
-        criado_por TEXT,
-        criado_em TEXT
-    )
-    """
+CREATE TABLE IF NOT EXISTS agenda (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    data_ref TEXT,
+    tarefa TEXT,
+    status TEXT DEFAULT 'Pendente',
+    criado_por TEXT,
+    criado_em TEXT
 )
 
     c.execute(
@@ -1107,6 +1104,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

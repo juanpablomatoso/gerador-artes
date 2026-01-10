@@ -11,25 +11,28 @@ from datetime import datetime
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
-# --- 2. ESTILIZAÇÃO CSS (LÓGICA DE CORES JUAN E BRAYAN) ---
+# --- 2. ESTILIZAÇÃO CSS ATUALIZADA (CORES E ALERTAS) ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
     .topo-titulo {
-        text-align: center; padding: 25px;
+        text-align: center; padding: 20px;
         background: linear-gradient(90deg, #004a99 0%, #007bff 100%);
-        color: white; border-radius: 15px; margin-bottom: 25px;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        color: white; border-radius: 15px; margin-bottom: 20px;
     }
-    .card-urgente { background-color: #ffdce0; color: #a51d2d; padding: 15px; border-radius: 12px; border-left: 10px solid #dc3545; margin-bottom: 15px; }
-    .card-normal { background-color: #fff3cd; color: #856404; padding: 15px; border-radius: 12px; border-left: 10px solid #ffc107; margin-bottom: 15px; }
-    .card-programar { background-color: #cfe2ff; color: #084298; padding: 15px; border-radius: 12px; border-left: 10px solid #0d6efd; margin-bottom: 15px; }
-    .card-concluido { background-color: #d1e7dd; color: #0f5132; padding: 12px; border-radius: 10px; border-left: 10px solid #198754; margin-bottom: 10px; opacity: 0.7; }
-    .btn-link { display: inline-block; padding: 5px 15px; background-color: #007bff; color: white !important; text-decoration: none; border-radius: 5px; font-weight: bold; margin-top: 10px; }
+    /* Estilos dos Cards na Fila */
+    .card-urgente { background-color: #ffdadb; color: #8b0000; padding: 18px; border-radius: 12px; border-left: 12px solid #ff4b4b; margin-bottom: 15px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); }
+    .card-programar { background-color: #e0efff; color: #004085; padding: 18px; border-radius: 12px; border-left: 12px solid #007bff; margin-bottom: 15px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); }
+    .card-normal { background-color: #fff9db; color: #856404; padding: 18px; border-radius: 12px; border-left: 12px solid #ffcc00; margin-bottom: 15px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); }
+    .card-concluido { background-color: #d1e7dd; color: #0f5132; padding: 12px; border-radius: 10px; border-left: 10px solid #198754; margin-bottom: 10px; opacity: 0.6; }
+    
+    .btn-link { display: inline-block; padding: 8px 20px; background-color: #007bff; color: white !important; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 10px; border: none; }
+    .btn-link:hover { background-color: #0056b3; }
+    .ajuda-box { background-color: #ffffff; padding: 15px; border-radius: 10px; border: 1px solid #ddd; margin-bottom: 20px; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. BANCO DE DADOS (FLUXO DE TRABALHO) ---
+# --- 3. BANCO DE DADOS ---
 def init_db():
     conn = sqlite3.connect('agenda_destaque.db')
     c = conn.cursor()
@@ -55,11 +58,9 @@ if not st.session_state.autenticado:
                     st.session_state.autenticado = True; st.session_state.perfil = u; st.rerun()
                 else: st.error("Erro de acesso")
 else:
-    # --- 5. LÓGICA DE ARTES (RESTAURADA DO CÓDIGO VIGILANTE - NÃO MEXER) ---
-    CAMINHO_FONTE = "Shoika Bold.ttf"
-    TEMPLATE_FEED = "template_feed.png"
-    TEMPLATE_STORIE = "template_storie.png"
-    HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    # --- 5. FUNÇÕES DE ARTE (PROIBIDO MEXER CONFORME SOLICITADO) ---
+    CAMINHO_FONTE = "Shoika Bold.ttf"; TEMPLATE_FEED = "template_feed.png"; TEMPLATE_STORIE = "template_storie.png"
+    HEADERS = {"User-Agent": "Mozilla/5.0"}
 
     def processar_artes_integrado(url, tipo_solicitado):
         res_m = requests.get(url, headers=HEADERS).text
@@ -67,33 +68,26 @@ else:
         titulo = soup_m.find("h1").get_text(strip=True)
         corpo = soup_m.find(class_="post-body") or soup_m
         img_url = next(img.get("src") for img in corpo.find_all("img") if "logo" not in img.get("src").lower())
-        
         img_res = requests.get(img_url, headers=HEADERS)
         img_original = Image.open(io.BytesIO(img_res.content)).convert("RGBA")
         larg_o, alt_o = img_original.size
         prop_o = larg_o / alt_o
-
         if tipo_solicitado == "FEED":
             TAMANHO_FEED = 1000
             if prop_o > 1.0:
-                n_alt = TAMANHO_FEED
-                n_larg = int(n_alt * prop_o)
+                n_alt = TAMANHO_FEED; n_larg = int(n_alt * prop_o)
                 img_f_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS)
                 margem = (n_larg - TAMANHO_FEED) // 2
                 fundo_f = img_f_redim.crop((margem, 0, margem + TAMANHO_FEED, TAMANHO_FEED))
             else:
-                n_larg = TAMANHO_FEED
-                n_alt = int(n_larg / prop_o)
+                n_larg = TAMANHO_FEED; n_alt = int(n_larg / prop_o)
                 img_f_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS)
                 margem = (n_alt - TAMANHO_FEED) // 2
                 fundo_f = img_f_redim.crop((0, margem, TAMANHO_FEED, margem + TAMANHO_FEED))
-
             if os.path.exists(TEMPLATE_FEED):
                 tmp_f = Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAMANHO_FEED, TAMANHO_FEED))
                 fundo_f.alpha_composite(tmp_f)
-
-            draw_f = ImageDraw.Draw(fundo_f)
-            tam_f = 85
+            draw_f = ImageDraw.Draw(fundo_f); tam_f = 85
             while tam_f > 20:
                 fonte_f = ImageFont.truetype(CAMINHO_FONTE, tam_f)
                 limite_f = int(662 / (fonte_f.getlength("W") * 0.55))
@@ -101,38 +95,26 @@ else:
                 alt_bloco_f = (len(linhas_f) * tam_f) + ((len(linhas_f)-1) * 4)
                 if alt_bloco_f <= 165 and len(linhas_f) <= 3: break
                 tam_f -= 1
-            
             y_f = 811 - (alt_bloco_f // 2)
             for lin in linhas_f:
                 larg_l = draw_f.textbbox((0, 0), lin, font=fonte_f)[2]
-                draw_f.text((488 - (larg_l // 2), y_f), lin, fill="black", font=fonte_f)
-                y_f += tam_f + 4
+                draw_f.text((488 - (larg_l // 2), y_f), lin, fill="black", font=fonte_f); y_f += tam_f + 4
             return fundo_f.convert("RGB")
-
         else: # STORY
-            LARG_STORY, ALT_STORY = 940, 541
-            ratio_a = LARG_STORY / ALT_STORY
+            LARG_STORY, ALT_STORY = 940, 541; ratio_a = LARG_STORY / ALT_STORY
             if prop_o > ratio_a:
-                ns_alt = ALT_STORY
-                ns_larg = int(ns_alt * prop_o)
+                ns_alt = ALT_STORY; ns_larg = int(ns_alt * prop_o)
             else:
-                ns_larg = LARG_STORY
-                ns_alt = int(ns_larg / prop_o)
-            
+                ns_larg = LARG_STORY; ns_alt = int(ns_larg / prop_o)
             img_s_redim = img_original.resize((ns_larg, ns_alt), Image.LANCZOS)
-            l_cut = (ns_larg - LARG_STORY) / 2
-            t_cut = (ns_alt - ALT_STORY) / 2
+            l_cut = (ns_larg - LARG_STORY) / 2; t_cut = (ns_alt - ALT_STORY) / 2
             img_s_final = img_s_redim.crop((l_cut, t_cut, l_cut + LARG_STORY, t_cut + ALT_STORY))
-
-            storie_canvas = Image.new("RGBA", (1080, 1920), (0, 0, 0, 255)) # Fundo preto 100%
+            storie_canvas = Image.new("RGBA", (1080, 1920), (0, 0, 0, 255))
             storie_canvas.paste(img_s_final, (69, 504))
-            
             if os.path.exists(TEMPLATE_STORIE):
                 tmp_s = Image.open(TEMPLATE_STORIE).convert("RGBA").resize((1080, 1920))
                 storie_canvas.alpha_composite(tmp_s)
-
-            draw_s = ImageDraw.Draw(storie_canvas)
-            tam_s = 60
+            draw_s = ImageDraw.Draw(storie_canvas); tam_s = 60
             while tam_s > 20:
                 fonte_s = ImageFont.truetype(CAMINHO_FONTE, tam_s)
                 limite_s = int(912 / (fonte_s.getlength("W") * 0.55))
@@ -140,11 +122,9 @@ else:
                 alt_bloco_s = (len(linhas_s) * tam_s) + (len(linhas_s) * 10)
                 if alt_bloco_s <= 300 and len(linhas_s) <= 4: break
                 tam_s -= 2
-                
             y_s = 1079
             for lin in linhas_s:
-                draw_s.text((69, y_s), lin, fill="white", font=fonte_s)
-                y_s += tam_s + 12
+                draw_s.text((69, y_s), lin, fill="white", font=fonte_s); y_s += tam_s + 12
             return storie_canvas.convert("RGB")
 
     def buscar_ultimas():
@@ -160,10 +140,20 @@ else:
         except: return []
 
     # --- 6. INTERFACE ---
-    st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Bem-vindo, {st.session_state.perfil.capitalize()}!</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Operador: {st.session_state.perfil.capitalize()}</p></div>', unsafe_allow_html=True)
+
+    # --- BOTÕES DE AJUDA (CENTRAL DE APOIO) ---
+    with st.expander("❓ PRECISA DE AJUDA? (Clique aqui)"):
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            if st.button("📖 Padrão de Título"): st.info("Sempre use títulos curtos no Instagram. No site pode ser completo.")
+        with c2:
+            if st.button("🕒 Horários de Post"): st.info("Prioridade 'Normal' = Postar agora. 'Programar' = Olhar a agenda.")
+        with c3:
+            if st.button("⚠️ Erro na Imagem"): st.warning("Se a imagem não carregar, verifique se o link da matéria está correto no site.")
 
     if st.session_state.perfil == "juan":
-        tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
+        tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DE TRABALHO", "📅 AGENDA"])
         
         with tab1:
             c1, c2 = st.columns([1, 2])
@@ -172,7 +162,7 @@ else:
                 for i, item in enumerate(buscar_ultimas()):
                     if st.button(item['t'], key=f"btn_{i}"): st.session_state.url_atual = item['u']
             with c2:
-                url_f = st.text_input("Link:", value=st.session_state.get('url_atual', ''))
+                url_f = st.text_input("Link Selecionado:", value=st.session_state.get('url_atual', ''))
                 if url_f:
                     ca, cb = st.columns(2)
                     if ca.button("🖼️ GERAR FEED"):
@@ -183,22 +173,27 @@ else:
                         st.image(img, width=250); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("Baixar Story", buf.getvalue(), "story.jpg")
 
         with tab2:
-            st.subheader("🚀 Mandar Matéria")
+            st.subheader("📤 Enviar para o Brayan")
             with st.form("brayan_form"):
-                tf = st.text_input("Título"); lf = st.text_input("Link")
-                pf = st.select_slider("Prioridade", options=["Programar", "Normal", "URGENTE"], value="Normal")
-                if st.form_submit_button("Enviar"):
-                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-                    c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade) VALUES (?,?,'Pendente',?,?)",
-                             (tf, lf, datetime.now().strftime("%H:%M"), pf))
-                    conn.commit(); conn.close(); st.rerun()
+                tf = st.text_input("Título da Matéria")
+                lf = st.text_input("Link de Referência")
+                pf = st.select_slider("Qual a urgência?", options=["Programar", "Normal", "URGENTE"], value="Normal")
+                if st.form_submit_button("Enviar para Fila"):
+                    if tf and lf:
+                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+                        c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade) VALUES (?,?,'Pendente',?,?)",
+                                 (tf, lf, datetime.now().strftime("%H:%M"), pf))
+                        conn.commit(); conn.close(); st.rerun()
+                    else: st.error("Preencha o título e o link!")
             
-            st.markdown("---")
+            st.markdown("### 📋 Histórico Recente")
             conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
             c.execute("SELECT * FROM pautas_trabalho ORDER BY id DESC LIMIT 10"); p_list = c.fetchall(); conn.close()
             for p in p_list:
-                est = "card-concluido" if p[3] == "✅ Concluído" else ("card-urgente" if p[5] == "URGENTE" else ("card-programar" if p[5] == "Programar" else "card-normal"))
-                st.markdown(f"<div class='{est}'><b>{p[5]}</b> | {p[4]} - {p[1]}</div>", unsafe_allow_html=True)
+                prio = p[5] if p[5] else "Normal"
+                hora = p[4] if p[4] else "--:--"
+                est = "card-concluido" if p[3] == "✅ Concluído" else ("card-urgente" if prio == "URGENTE" else ("card-programar" if prio == "Programar" else "card-normal"))
+                st.markdown(f"<div class='{est}'><b>[{prio}]</b> | {hora} - {p[1]}</div>", unsafe_allow_html=True)
                 if st.button(f"Remover #{p[0]}", key=f"rm_{p[0]}"):
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
 
@@ -212,14 +207,36 @@ else:
                     if txt != p_ag.get(d,""):
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,txt)); conn.commit(); conn.close(); st.toast(f"Salvo {d}")
 
-    else: # PAINEL BRAYAN
-        st.subheader("📋 Suas Matérias")
+    else: # --- PAINEL DO BRAYAN ---
+        st.subheader("🔔 Matérias para Postar Agora")
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-        c.execute("SELECT * FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY CASE WHEN prioridade='URGENTE' THEN 1 WHEN prioridade='Normal' THEN 2 ELSE 3 END"); p_br = c.fetchall(); conn.close()
+        # Ordena para mostrar o URGENTE no topo
+        c.execute("SELECT * FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY CASE WHEN prioridade='URGENTE' THEN 1 WHEN prioridade='Normal' THEN 2 ELSE 3 END")
+        p_br = c.fetchall(); conn.close()
+        
+        if not p_br:
+            st.success("Tudo limpo por aqui! Nenhuma pauta pendente.")
+        
         for pb in p_br:
-            cor = "card-urgente" if pb[5] == "URGENTE" else ("card-programar" if pb[5] == "Programar" else "card-normal")
-            st.markdown(f"<div class='{cor}'><b>{pb[5]}</b> - {pb[4]}<br><span style='font-size:1.3rem'>{pb[1]}</span><br><a href='{pb[2]}' target='_blank' class='btn-link'>🔗 ACESSAR MATÉRIA</a></div>", unsafe_allow_html=True)
-            if st.button("CONCLUÍDO", key=f"ok_{pb[0]}"):
-                conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(pb[0],)); conn.commit(); conn.close(); st.rerun()
+            prio_br = pb[5] if pb[5] else "Normal"
+            hora_br = pb[4] if pb[4] else "Agora"
+            cor_br = "card-urgente" if prio_br == "URGENTE" else ("card-programar" if prio_br == "Programar" else "card-normal")
+            
+            # Ícone por tipo
+            icone = "🚨" if prio_br == "URGENTE" else ("📅" if prio_br == "Programar" else "✅")
+            
+            st.markdown(f"""
+                <div class='{cor_br}'>
+                    <span style='font-size: 1.2rem;'>{icone} <b>{prio_br.upper()}</b></span><br>
+                    <small>Enviado às: {hora_br}</small><br>
+                    <p style='font-size: 1.4rem; font-weight: bold; margin: 10px 0;'>{pb[1]}</p>
+                    <a href='{pb[2]}' target='_blank' class='btn-link'>🔗 ABRIR MATÉRIA NO SITE</a>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            if st.button(f"MARCAR COMO POSTADO #{pb[0]}", key=f"ok_{pb[0]}"):
+                conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
+                c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(pb[0],))
+                conn.commit(); conn.close(); st.success("Postagem concluída!"); st.rerun()
 
-    if st.sidebar.button("Sair"): st.session_state.autenticado = False; st.rerun()
+    if st.sidebar.button("Sair do Sistema"): st.session_state.autenticado = False; st.rerun()

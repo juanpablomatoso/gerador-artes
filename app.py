@@ -9,9 +9,9 @@ import sqlite3
 from datetime import datetime
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
-st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="📸")
+st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
-# --- 2. ESTILIZAÇÃO CSS (CORES PARA JUAN E BRAYAN) ---
+# --- 2. ESTILIZAÇÃO CSS (PAINEL) ---
 st.markdown("""
     <style>
     .main { background-color: #f4f7f9; }
@@ -58,15 +58,16 @@ if not st.session_state.autenticado:
             if st.form_submit_button("Entrar"):
                 if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
                     st.session_state.autenticado = True; st.session_state.perfil = u; st.rerun()
-                else: st.error("Erro de acesso")
+                else: st.error("Usuário ou senha incorretos")
 else:
-    # --- 5. FUNÇÕES DE ARTE (RESTAURADAS ORIGINAIS - NÃO MEXER) ---
+    # --- 5. FUNÇÃO DE ARTE (EXATAMENTE O SEU PADRÃO ENVIADO) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"
     TEMPLATE_FEED = "template_feed.png"
     TEMPLATE_STORIE = "template_storie.png"
     HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
 
     def processar_imagem_web(url, tipo_arte):
+        # Faz o download da matéria
         res_m = requests.get(url, headers=HEADERS).text
         soup_m = BeautifulSoup(res_m, "html.parser")
         titulo = soup_m.find("h1").get_text(strip=True)
@@ -79,40 +80,37 @@ else:
         prop_o = larg_o / alt_o
 
         if tipo_arte == "FEED":
-            TAM_F = 1000
+            TAMANHO = 1000
             if prop_o > 1.0:
-                nova_alt = TAM_F
-                nova_larg = int(TAM_F * prop_o)
-                img_redim = img_original.resize((nova_larg, nova_alt), Image.LANCZOS)
-                margem = (nova_larg - TAM_F) // 2
-                img_final = img_redim.crop((margem, 0, margem + TAM_F, TAM_F))
+                n_alt = TAMANHO
+                n_larg = int(n_alt * prop_o)
+                img_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS)
+                margem = (n_larg - TAMANHO) // 2
+                canvas = img_redim.crop((margem, 0, margem + TAMANHO, TAMANHO))
             else:
-                nova_larg = TAM_F
-                nova_alt = int(TAM_F / prop_o)
-                img_redim = img_original.resize((nova_larg, nova_alt), Image.LANCZOS)
-                margem = (nova_alt - TAM_F) // 2
-                img_final = img_redim.crop((0, margem, TAM_F, margem + TAM_F))
+                n_larg = TAMANHO
+                n_alt = int(n_larg / prop_o)
+                img_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS)
+                margem = (n_alt - TAMANHO) // 2
+                canvas = img_redim.crop((0, margem, TAMANHO, margem + TAMANHO))
 
             if os.path.exists(TEMPLATE_FEED):
-                template = Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAM_F, TAM_F))
-                img_final.alpha_composite(template)
-
-            draw = ImageDraw.Draw(img_final)
-            tamanho_fonte = 85
-            while tamanho_fonte > 20:
-                fonte = ImageFont.truetype(CAMINHO_FONTE, tamanho_fonte)
-                linhas = textwrap.wrap(titulo, width=int(662 / (fonte.getlength("W") * 0.55)))
-                if (len(linhas) * tamanho_fonte) <= 165 and len(linhas) <= 3:
-                    break
-                tamanho_fonte -= 1
-
-            y_texto = 811 - ((len(linhas) * tamanho_fonte) // 2)
-            for linha in linhas:
-                largura_l = draw.textbbox((0, 0), linha, font=fonte)[2]
-                draw.text((488 - (largura_l // 2), y_texto), linha, fill="black", font=fonte)
-                y_texto += tamanho_fonte + 4
-            return img_final.convert("RGB")
-
+                tmp = Image.open(TEMPLATE_FEED).convert("RGBA").resize((TAMANHO, TAMANHO))
+                canvas.alpha_composite(tmp)
+            
+            draw = ImageDraw.Draw(canvas)
+            tam_f = 85
+            while tam_f > 20:
+                fonte = ImageFont.truetype(CAMINHO_FONTE, tam_f)
+                linhas = textwrap.wrap(titulo, width=20) 
+                if len(linhas) <= 3: break
+                tam_f -= 2
+            
+            y_f = 811 - (len(linhas) * tam_f // 2)
+            for lin in linhas:
+                draw.text((488, y_f), lin, fill="black", font=fonte, anchor="mm")
+                y_f += tam_f + 4
+                
         else: # STORY
             LARG_S, ALT_S = 940, 541
             img_s_redim = img_original.resize((LARG_S, ALT_S), Image.LANCZOS)
@@ -126,7 +124,8 @@ else:
             draw = ImageDraw.Draw(canvas)
             fonte = ImageFont.truetype(CAMINHO_FONTE, 60)
             draw.text((69, 1079), titulo[:100], fill="white", font=fonte)
-            return canvas.convert("RGB")
+
+        return canvas.convert("RGB")
 
     def obter_noticias_site():
         try:
@@ -141,7 +140,7 @@ else:
         except: return []
 
     # --- 6. INTERFACE ---
-    st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Usuário: {st.session_state.perfil.capitalize()}</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Bem-vindo, {st.session_state.perfil.capitalize()}!</p></div>', unsafe_allow_html=True)
 
     if st.session_state.perfil == "juan":
         aba1, aba2, aba3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 ENVIAR AO BRAYAN", "📅 AGENDA"])
@@ -154,35 +153,36 @@ else:
                 for i, n in enumerate(lista):
                     if st.button(n['titulo'], key=f"noticia_{i}"): st.session_state.url_ativa = n['url']
             with c_w:
-                url = st.text_input("Link:", value=st.session_state.get('url_ativa', ''))
+                url = st.text_input("Link da matéria:", value=st.session_state.get('url_ativa', ''))
                 if url:
                     col_a, col_b = st.columns(2)
-                    if col_a.button("🖼️ GERAR FEED"):
-                        res = processar_imagem_web(url, "FEED")
-                        if res: st.image(res); buf=io.BytesIO(); res.save(buf,"JPEG"); st.download_button("Baixar", buf, "feed.jpg")
-                    if col_b.button("📱 GERAR STORY"):
-                        res = processar_imagem_web(url, "STORY")
-                        if res: st.image(res, width=300); buf=io.BytesIO(); res.save(buf,"JPEG"); st.download_button("Baixar", buf, "story.jpg")
+                    if col_a.button("🖼️ GERAR FEED (QUADRADO)"):
+                        img = processar_imagem_web(url, "FEED")
+                        if img: st.image(img); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("Baixar Feed", buf.getvalue(), "feed.jpg")
+                    if col_b.button("📱 GERAR STORY (VERTICAL)"):
+                        img = processar_imagem_web(url, "STORY")
+                        if img: st.image(img, width=250); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("Baixar Story", buf.getvalue(), "story.jpg")
 
         with aba2:
-            st.subheader("🚀 Fila do Brayan")
+            st.subheader("🚀 Gerenciar Fila")
             with st.form("envio"):
-                t = st.text_input("Título"); l = st.text_input("Link")
-                p = st.select_slider("Prioridade", options=["Programar", "Normal", "URGENTE"], value="Normal")
-                if st.form_submit_button("Enviar"):
+                t_p = st.text_input("Título"); l_p = st.text_input("Link")
+                prio = st.select_slider("Prioridade", options=["Programar", "Normal", "URGENTE"], value="Normal")
+                if st.form_submit_button("Enviar ao Brayan"):
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
                     c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade) VALUES (?,?,'Pendente',?,?)",
-                             (t, l, datetime.now().strftime("%H:%M"), p))
+                             (t_p, l_p, datetime.now().strftime("%H:%M"), prio))
                     conn.commit(); conn.close(); st.rerun()
             
             st.markdown("---")
             conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
             c.execute("SELECT * FROM pautas_trabalho ORDER BY id DESC LIMIT 10"); p_list = c.fetchall(); conn.close()
             for p in p_list:
-                prio = str(p[5]) if p[5] else "Normal"
-                estilo = "card-concluido" if p[3] == "✅ Concluído" else ("card-urgente" if prio == "URGENTE" else ("card-programar" if prio == "Programar" else "card-normal"))
-                st.markdown(f"<div class='{estilo}'><b>{prio}</b> | {p[4]} - {p[1]}<br>Status: {p[3]}</div>", unsafe_allow_html=True)
-                if st.button(f"Remover #{p[0]}", key=f"del_{p[0]}"):
+                status_atual = p[3]
+                prio_txt = str(p[5]) if p[5] else "Normal"
+                cor_card = "card-concluido" if status_atual == "✅ Concluído" else ("card-urgente" if prio_txt == "URGENTE" else ("card-programar" if prio_txt == "Programar" else "card-normal"))
+                st.markdown(f"<div class='{cor_card}'><b>{prio_txt}</b> | {p[4]} - {p[1]} <br> Status: {status_atual}</div>", unsafe_allow_html=True)
+                if st.button(f"Excluir #{p[0]}", key=f"del_{p[0]}"):
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
 
         with aba3:
@@ -196,14 +196,14 @@ else:
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,nt)); conn.commit(); conn.close(); st.toast(f"Salvo {d}")
 
     else: # PAINEL BRAYAN
-        st.subheader("📋 Suas Matérias")
+        st.subheader("📋 Sua Fila de Trabalho")
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
         c.execute("SELECT * FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY CASE WHEN prioridade='URGENTE' THEN 1 WHEN prioridade='Normal' THEN 2 ELSE 3 END"); p_br = c.fetchall(); conn.close()
         for pb in p_br:
-            p_val = str(pb[5]) if pb[5] else "Normal"
-            cor = "card-urgente" if p_val == "URGENTE" else ("card-programar" if p_val == "Programar" else "card-normal")
-            st.markdown(f"<div class='{cor}'><b>{p_val.upper()}</b> - {pb[4]}<br><span style='font-size:1.3rem'>{pb[1]}</span><br><a href='{pb[2]}' target='_blank' class='btn-link'>🔗 ACESSAR MATÉRIA</a></div>", unsafe_allow_html=True)
-            if st.button("JÁ POSTEI", key=f"ok_{pb[0]}"):
+            prio_br = str(pb[5]) if pb[5] else "Normal"
+            cor_br = "card-urgente" if prio_br == "URGENTE" else ("card-programar" if prio_br == "Programar" else "card-normal")
+            st.markdown(f"<div class='{cor_br}'><b>{prio_br.upper()}</b> - Enviado às {pb[4]}<br><span style='font-size:1.3rem'>{pb[1]}</span><br><a href='{pb[2]}' target='_blank' class='btn-link'>🔗 ACESSAR MATÉRIA</a></div>", unsafe_allow_html=True)
+            if st.button("CONCLUÍDO", key=f"ok_{pb[0]}"):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(pb[0],)); conn.commit(); conn.close(); st.rerun()
 
     if st.sidebar.button("Sair"): st.session_state.autenticado = False; st.rerun()

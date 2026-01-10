@@ -23,7 +23,6 @@ st.markdown("""
     }
     .topo-titulo h1 { margin: 0; font-size: 2.5rem; font-weight: 800; }
     
-    /* Estilos de Prioridade e Status */
     .prioridade-urgente { background-color: #f8d7da; color: #721c24; padding: 12px; border-radius: 10px; border-left: 8px solid #dc3545; font-weight: bold; margin-bottom: 10px; }
     .prioridade-normal { background-color: #e2e3e5; color: #383d41; padding: 12px; border-radius: 10px; border-left: 8px solid #6c757d; font-weight: bold; margin-bottom: 10px; }
     .prioridade-programar { background-color: #cce5ff; color: #004085; padding: 12px; border-radius: 10px; border-left: 8px solid #007bff; font-weight: bold; margin-bottom: 10px; }
@@ -33,18 +32,14 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. BANCO DE DADOS (COM CORREÇÃO DE MIGRAÇÃO) ---
+# --- 3. BANCO DE DADOS ---
 def init_db():
     conn = sqlite3.connect('agenda_destaque.db')
     c = conn.cursor()
-    # Tabela Agenda
     c.execute('CREATE TABLE IF NOT EXISTS agenda (dia TEXT PRIMARY KEY, pauta TEXT)')
-    
-    # Tabela de Pautas
     c.execute('''CREATE TABLE IF NOT EXISTS pautas_trabalho 
                  (id INTEGER PRIMARY KEY AUTOINCREMENT, titulo TEXT, link_ref TEXT, status TEXT, data_envio TEXT, prioridade TEXT)''')
     
-    # Correção para bancos antigos (adiciona colunas faltantes)
     c.execute("PRAGMA table_info(pautas_trabalho)")
     colunas = [coluna[1] for coluna in c.fetchall()]
     if 'prioridade' not in colunas:
@@ -184,18 +179,17 @@ else:
                     if st.button(item['titulo'], key=f"btn_{item['url']}", help="Clique para carregar esta notícia"):
                         st.session_state.url_ativa = item['url']
             with col_trabalho:
-                st.markdown('<p class="ajuda-texto">💡 O link aparecerá aqui automaticamente ao clicar na notícia ao lado.</p>', unsafe_allow_html=True)
                 url_ativa = st.text_input("📍 Link ativo:", value=st.session_state.get('url_ativa', ''))
                 if url_ativa:
                     c1, c2 = st.columns(2)
                     with c1:
-                        if st.button("🖼️ GERAR FEED", help="Gera arte para o Feed"):
+                        if st.button("🖼️ GERAR FEED"):
                             img = processar_artes_web(url_ativa, "FEED")
                             if img:
                                 st.image(img, use_container_width=True)
                                 buf = io.BytesIO(); img.save(buf, format="JPEG"); st.download_button("📥 Baixar Feed", buf.getvalue(), "feed.jpg")
                     with c2:
-                        if st.button("📱 GERAR STORY", help="Gera arte para Story"):
+                        if st.button("📱 GERAR STORY"):
                             img = processar_artes_web(url_ativa, "STORY")
                             if img:
                                 st.image(img, width=250)
@@ -205,7 +199,6 @@ else:
             col_add, col_ver = st.columns([1, 1.2])
             with col_add:
                 st.subheader("🚀 Enviar Nova Matéria")
-                st.markdown('<p class="ajuda-texto">Defina a prioridade para o Brayan saber o que postar primeiro.</p>', unsafe_allow_html=True)
                 with st.form("form_pauta"):
                     t_m = st.text_input("Título")
                     l_m = st.text_input("Link/Observação")
@@ -221,9 +214,11 @@ else:
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
                 c.execute("SELECT * FROM pautas_trabalho WHERE status != '✅ Concluído' ORDER BY id DESC"); pautas = c.fetchall(); conn.close()
                 for p in pautas:
-                    cor = "prioridade-urgente" if p[5] == "URGENTE" else ("prioridade-programar" if p[5] == "Programar" else "prioridade-normal")
-                    st.markdown(f"<div class='{cor}'>{p[5]} | {p[4]}<br>{p[1]}</div>", unsafe_allow_html=True)
-                    if st.button(f"🗑️ Excluir #{p[0]}", key=f"del_{p[0]}", help="Remove da fila do Brayan"):
+                    # Correção: Trata prioridade None
+                    p_text = str(p[5]) if p[5] else "Normal"
+                    cor = "prioridade-urgente" if p_text == "URGENTE" else ("prioridade-programar" if p_text == "Programar" else "prioridade-normal")
+                    st.markdown(f"<div class='{cor}'>{p_text} | {p[4]}<br>{p[1]}</div>", unsafe_allow_html=True)
+                    if st.button(f"🗑️ Excluir #{p[0]}", key=f"del_{p[0]}"):
                         excluir_pauta_trabalho(p[0]); st.rerun()
 
         with aba_agenda:
@@ -240,19 +235,21 @@ else:
     # --- VISÃO DO BRAYAN ---
     else:
         st.subheader("📋 Suas Tarefas de Hoje")
-        st.markdown('<p class="ajuda-texto">Matérias urgentes aparecem primeiro.</p>', unsafe_allow_html=True)
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
         c.execute("SELECT * FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY CASE WHEN prioridade='URGENTE' THEN 1 WHEN prioridade='Normal' THEN 2 ELSE 3 END"); p_br = c.fetchall(); conn.close()
         
         if not p_br: st.info("Nenhuma matéria pendente no momento!")
         for pb in p_br:
-            cor_pb = "prioridade-urgente" if pb[5] == "URGENTE" else ("prioridade-programar" if pb[5] == "Programar" else "prioridade-normal")
-            st.markdown(f"<div class='{cor_pb}'>{pb[5].upper()} - Enviado às {pb[4]}<br><span style='font-size:1.3rem'>{pb[1]}</span><br><small>{pb[2]}</small></div>", unsafe_allow_html=True)
-            if st.button("✅ MARCAR COMO POSTADO NO SITE", key=f"br_fin_{pb[0]}"):
+            # Correção: Trata prioridade e data_envio None
+            prio_val = str(pb[5]) if pb[5] else "NORMAL"
+            data_val = str(pb[4]) if pb[4] else "--:--"
+            cor_pb = "prioridade-urgente" if prio_val == "URGENTE" else ("prioridade-programar" if prio_val == "Programar" else "prioridade-normal")
+            
+            st.markdown(f"<div class='{cor_pb}'>{prio_val.upper()} - Enviado às {data_val}<br><span style='font-size:1.3rem'>{pb[1]}</span><br><small>{pb[2]}</small></div>", unsafe_allow_html=True)
+            if st.button("✅ MARCAR COMO POSTADO", key=f"br_fin_{pb[0]}"):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
                 c.execute("UPDATE pautas_trabalho SET status = '✅ Concluído' WHERE id = ?", (pb[0],))
                 conn.commit(); conn.close(); st.rerun()
 
-    # Botão de Logout comum na Sidebar
     if st.sidebar.button("Sair do Painel"):
         st.session_state.autenticado = False; st.rerun()

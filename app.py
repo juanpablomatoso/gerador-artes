@@ -134,21 +134,11 @@ def get_conn():
 def init_db():
     conn = get_conn()
     c = conn.cursor()
-    c.execute("CREATE TABLE IF NOT EXISTS agenda (dia TEXT PRIMARY KEY, pauta TEXT)")
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS pautas_trabalho
-        (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT,
-            link_ref TEXT,
-            status TEXT,
-            data_envio TEXT,
-            prioridade TEXT,
-            observacao TEXT
-        )
-        """
-    )
+
+    c.execute("""CREATE TABLE IF NOT EXISTS agenda (...)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS pautas_trabalho (...)""")
+    c.execute("""CREATE TABLE IF NOT EXISTS agenda_itens (...)""")
+
     conn.commit()
     conn.close()
 
@@ -1093,4 +1083,5 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 

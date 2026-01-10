@@ -206,9 +206,8 @@ def normalizar_url(base: str, candidate: str) -> str:
     return urljoin(base, candidate)
 
 def encontrar_primeira_imagem_util(base_url: str, soup: BeautifulSoup) -> str:
-    corpo = soup.find(class_="post-body") or soup.find("article") or soup
-
     candidatos = []
+    corpo = soup.find(class_="post-body") or soup.find("article") or soup
 
     for img in corpo.find_all("img"):
         src = (img.get("src") or "").strip()
@@ -221,41 +220,16 @@ def encontrar_primeira_imagem_util(base_url: str, soup: BeautifulSoup) -> str:
         full = normalizar_url(base_url, pick)
         low = full.lower()
 
-        # descarta lixo comum
-        if any(x in low for x in ["logo", "icon", "sprite", "ads", "doubleclick", "pixel"]):
+        if "logo" in low or "icon" in low or "sprite" in low:
             continue
 
-        # tenta avaliar tamanho (quando disponível)
-        try:
-            w = int(img.get("width")) if img.get("width") else 0
-            h = int(img.get("height")) if img.get("height") else 0
-            area = w * h
-        except Exception:
-            area = 0
+        if not re.search(r"\.(jpg|jpeg|png|webp)(\?|$)", low):
+            candidatos.append(full)
+            continue
 
-        score = 0
+        return full
 
-        # extensão conhecida ajuda, mas não é obrigatória
-        if re.search(r"\.(jpg|jpeg|png|webp)(\?|$)", low):
-            score += 3
-
-        # imagem grande tende a ser imagem principal
-        if area >= 200_000:  # ~500x400
-            score += 2
-
-        # classes comuns de imagem destacada
-        classes = " ".join(img.get("class") or [])
-        if any(x in classes for x in ["featured", "attachment", "wp-post-image"]):
-            score += 2
-
-        candidatos.append((score, full))
-
-    if not candidatos:
-        return ""
-
-    # pega a imagem com maior score
-    candidatos.sort(key=lambda x: x[0], reverse=True)
-    return candidatos[0][1]
+    return candidatos[0] if candidatos else ""
 
 def garantir_fonte():
     if not os.path.exists(CAMINHO_FONTE):
@@ -581,17 +555,13 @@ else:
                         f"<div class='card-pauta {classe_cor}'><small>{p[3]}</small><br><b>{p[1]}</b></div>",
                         unsafe_allow_html=True,
                     )
-if st.button("Remover", key=f"ex_{p[0]}"):
-    if st.session_state.get(f"confirm_rm_{p[0]}", False):
-        conn = get_conn()
-        c = conn.cursor()
-        c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],))
-        conn.commit()
-        conn.close()
-        st.rerun()
-    else:
-        st.session_state[f"confirm_rm_{p[0]}"] = True
-        st.warning("Clique novamente em Remover para confirmar.")
+                    if st.button("Remover", key=f"ex_{p[0]}"):
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],))
+                        conn.commit()
+                        conn.close()
+                        st.rerun()
 
         with tab3:
             st.info("A aba AGENDA está mantida como no seu projeto (tabela 'agenda'). Se quiser, posso finalizar a UI dela.")
@@ -669,8 +639,6 @@ if st.button("Remover", key=f"ex_{p[0]}"):
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
-
-
 
 
 

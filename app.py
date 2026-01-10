@@ -6,7 +6,7 @@ import textwrap
 import io
 import os
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
@@ -67,9 +67,9 @@ else:
     # --- 5. FUNÇÕES DE ARTE (NÃO MEXER) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"; TEMPLATE_FEED = "template_feed.png"; TEMPLATE_STORIE = "template_storie.png"; HEADERS = {"User-Agent": "Mozilla/5.0"}
     
-    def processar_artes_integrado(url, tipo_solicitado):
+    def processar_artes_integrado(url, tipo_solicitated):
         res_m = requests.get(url, headers=HEADERS).text; soup_m = BeautifulSoup(res_m, "html.parser"); titulo = soup_m.find("h1").get_text(strip=True); corpo = soup_m.find(class_="post-body") or soup_m; img_url = next(img.get("src") for img in corpo.find_all("img") if "logo" not in img.get("src").lower()); img_res = requests.get(img_url, headers=HEADERS); img_original = Image.open(io.BytesIO(img_res.content)).convert("RGBA"); larg_o, alt_o = img_original.size; prop_o = larg_o / alt_o
-        if tipo_solicitado == "FEED":
+        if tipo_solicitated == "FEED":
             TAMANHO_FEED = 1000
             if prop_o > 1.0:
                 n_alt = TAMANHO_FEED; n_larg = int(n_alt * prop_o); img_f_redim = img_original.resize((n_larg, n_alt), Image.LANCZOS); margem = (n_larg - TAMANHO_FEED) // 2; fundo_f = img_f_redim.crop((margem, 0, margem + TAMANHO_FEED, TAMANHO_FEED))
@@ -130,9 +130,9 @@ else:
                     if cb.button("📱 GERAR STORY"):
                         img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=250); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("Baixar Story", buf.getvalue(), "story.jpg")
 
-        with tab2: # ABA 2 - CORREÇÃO DO "NONE"
+        with tab2: # ABA 2 - CORREÇÃO DE HORÁRIO BRASÍLIA
             st.subheader("📤 Mandar Nova Matéria")
-            with st.form("form_envio_limpo"):
+            with st.form("form_envio_horario"):
                 f_titulo = st.text_input("Título da Matéria")
                 f_link = st.text_input("Link da Matéria")
                 f_obs = st.text_area("Observação / Instrução")
@@ -140,16 +140,17 @@ else:
                 
                 if st.form_submit_button("Enviar para o Brayan"):
                     if f_titulo:
-                        h = datetime.now().strftime("%H:%M")
-                        # Garante que nada vá como None para o banco
+                        # AJUSTE PARA HORÁRIO DE BRASÍLIA (UTC-3)
+                        hora_br = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
+                        
                         link_final = f_link if f_link else "Sem Link"
                         obs_final = f_obs if f_obs else ""
                         prio_final = f_urgencia if f_urgencia else "Normal"
                         
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
                         c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", 
-                                 (f_titulo, link_final, h, prio_final, obs_final))
-                        conn.commit(); conn.close(); st.success("Enviado com sucesso!"); st.rerun()
+                                 (f_titulo, link_final, hora_br, prio_final, obs_final))
+                        conn.commit(); conn.close(); st.success("Enviado!"); st.rerun()
                     else: st.warning("O título é obrigatório!")
 
             st.markdown("---")
@@ -159,10 +160,6 @@ else:
             p_hist = c.fetchall(); conn.close()
             for p in p_hist:
                 p_id, p_tit, p_urg, p_hor, p_stat = p
-                # Se o banco retornar None, a gente corrige na exibição aqui:
-                p_urg = p_urg if p_urg else "Normal"
-                p_hor = p_hor if p_hor else "--:--"
-                
                 st.markdown(f"<div class='card-pauta'><b>[{p_urg.upper()}]</b> - {p_hor}<br>{p_tit}<br><small>Status: {p_stat}</small></div>", unsafe_allow_html=True)
                 if st.button("Excluir", key=f"ex_{p_id}"):
                     conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p_id,)); conn.commit(); conn.close(); st.rerun()
@@ -177,18 +174,13 @@ else:
                     if txt != p_ag.get(d,""):
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,txt)); conn.commit(); conn.close(); st.toast(f"Salvo {d}")
 
-    else: # PAINEL BRAYAN - BLINDADO CONTRA "NONE"
+    else: # PAINEL BRAYAN
         st.subheader("📋 Sua Fila de Postagens")
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
         c.execute("SELECT id, titulo, link_ref, data_envio, prioridade, observacao FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
         p_br = c.fetchall(); conn.close()
         for pb in p_br:
-            # Blindagem: se for None, vira texto vazio ou padrão
             b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
-            b_prio = b_prio if b_prio else "Normal"
-            b_hora = b_hora if b_hora else "--:--"
-            b_link = b_link if b_link else "#"
-            
             st.markdown(f"""
                 <div class="card-pauta">
                     <span class="tag-status">{b_prio.upper()}</span> | Enviado às: {b_hora}<br>

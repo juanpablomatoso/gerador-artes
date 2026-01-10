@@ -11,30 +11,56 @@ from datetime import datetime, timedelta
 # --- 1. CONFIGURAÇÃO DA PÁGINA ---
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
-# --- 2. ESTILIZAÇÃO CSS (ESTÁVEL) ---
+# --- 2. ESTILIZAÇÃO CSS PROFISSIONAL ---
 st.markdown("""
     <style>
+    /* Topo e Fundo */
+    .stApp { background-color: #f8f9fa; }
     .topo-titulo {
-        text-align: center; padding: 20px;
-        background: #004a99;
-        color: white; border-radius: 15px; margin-bottom: 20px;
+        text-align: center; padding: 30px;
+        background: linear-gradient(90deg, #004a99 0%, #007bff 100%);
+        color: white; border-radius: 15px; margin-bottom: 25px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+    
+    /* Cards de Pauta */
     .card-pauta {
-        background-color: white; padding: 20px; border-radius: 10px;
-        border: 1px solid #ddd; margin-bottom: 15px;
+        background-color: white; padding: 20px; border-radius: 12px;
+        border-left: 6px solid #004a99; margin-bottom: 15px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
+    .card-urgente { border-left: 6px solid #dc3545; background-color: #fff5f5; }
+    .card-programar { border-left: 6px solid #ffc107; background-color: #fffdf5; }
+    
+    /* Tags e Status */
     .tag-status {
-        background-color: #f1f1f1; padding: 4px 10px; border-radius: 5px;
-        font-weight: bold; color: #333; border: 1px solid #ccc;
+        padding: 4px 12px; border-radius: 20px; font-size: 0.75rem;
+        font-weight: bold; text-transform: uppercase;
     }
+    .tag-urgente { background-color: #dc3545; color: white; }
+    .tag-normal { background-color: #e9ecef; color: #495057; }
+    .tag-programar { background-color: #ffc107; color: #000; }
+    
+    /* Botões Customizados */
+    div.stButton > button {
+        border-radius: 8px; font-weight: bold; transition: all 0.3s;
+    }
+    .btn-gerar-feed { background-color: #004a99 !important; color: white !important; }
+    .btn-gerar-story { background-color: #6f42c1 !important; color: white !important; }
+    .btn-concluir { background-color: #28a745 !important; color: white !important; width: 100%; }
+    .btn-enviar { background-color: #28a745 !important; color: white !important; height: 50px; }
+    
+    /* Caixa de Observação */
     .obs-box {
-        background-color: #fff8e1; padding: 10px; border-left: 5px solid #ffc107;
-        margin-top: 10px; font-size: 0.9rem;
+        background-color: #e7f1ff; padding: 12px; border-radius: 8px;
+        border: 1px dashed #004a99; margin-top: 10px; font-style: italic;
     }
+    
+    /* Links */
     .btn-link {
         display: inline-block; padding: 10px 20px; background-color: #007bff;
-        color: white !important; text-decoration: none; border-radius: 5px;
-        margin-top: 10px; font-weight: bold;
+        color: white !important; text-decoration: none; border-radius: 8px;
+        margin-top: 10px; font-weight: bold; text-align: center;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -49,32 +75,23 @@ def init_db():
 
 init_db()
 
-# --- 4. LÓGICA DE LOGIN (APENAS MANTENHA-ME CONECTADO) ---
-if 'autenticado' not in st.session_state:
-    st.session_state.autenticado = False
+# --- 4. LÓGICA DE LOGIN ---
+if 'autenticado' not in st.session_state: st.session_state.autenticado = False
 
 if not st.session_state.autenticado:
-    st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Painel de Controle</p></div>', unsafe_allow_html=True)
-    
+    st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1><p>Acesse o seu painel de trabalho</p></div>', unsafe_allow_html=True)
     _, col2, _ = st.columns([1, 1.2, 1])
-    
     with col2:
         with st.form("login_direto"):
-            st.subheader("Login")
             u = st.text_input("Usuário").lower().strip()
             s = st.text_input("Senha", type="password")
             manter = st.checkbox("Mantenha-me conectado")
-            
-            if st.form_submit_button("Entrar no Sistema", use_container_width=True):
+            if st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True):
                 if (u == "juan" and s == "juan123") or (u == "brayan" and s == "brayan123"):
-                    st.session_state.autenticado = True
-                    st.session_state.perfil = u
-                    st.session_state.permanente = manter
-                    st.rerun()
-                else:
-                    st.error("Usuário ou senha incorretos.")
+                    st.session_state.autenticado = True; st.session_state.perfil = u; st.rerun()
+                else: st.error("Acesso negado. Verifique suas credenciais.")
 else:
-    # --- 5. FUNÇÕES DE ARTE (NÃO MEXER) ---
+    # --- 5. FUNÇÕES DE ARTE (BLOQUEADAS) ---
     CAMINHO_FONTE = "Shoika Bold.ttf"; TEMPLATE_FEED = "template_feed.png"; TEMPLATE_STORIE = "template_storie.png"; HEADERS = {"User-Agent": "Mozilla/5.0"}
     
     def processar_artes_integrado(url, tipo_solicitated):
@@ -126,79 +143,101 @@ else:
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
         
         with tab1:
-            c1, c2 = st.columns([1, 2])
+            c1, col_preview = st.columns([1, 2])
             with c1:
-                st.subheader("📰 Notícias")
+                st.subheader("📰 Notícias Recentes")
                 for i, item in enumerate(buscar_ultimas()):
-                    if st.button(item['t'], key=f"btn_{i}"): st.session_state.url_atual = item['u']
-            with c2:
-                url_f = st.text_input("Link:", value=st.session_state.get('url_atual', ''))
+                    if st.button(item['t'], key=f"btn_{i}", use_container_width=True): 
+                        st.session_state.url_atual = item['u']
+            with col_preview:
+                url_f = st.text_input("Link da Matéria:", value=st.session_state.get('url_atual', ''), placeholder="Cole o link aqui...")
                 if url_f:
                     ca, cb = st.columns(2)
-                    if ca.button("🖼️ GERAR FEED"):
-                        img = processar_artes_integrado(url_f, "FEED"); st.image(img); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("Baixar Feed", buf.getvalue(), "feed.jpg")
-                    if cb.button("📱 GERAR STORY"):
-                        img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=250); buf=io.BytesIO(); img.save(buf,"JPEG"); st.download_button("Baixar Story", buf.getvalue(), "story.jpg")
+                    if ca.button("🖼️ GERAR FEED", use_container_width=True, type="primary"):
+                        img = processar_artes_integrado(url_f, "FEED"); st.image(img); buf=io.BytesIO(); img.save(buf,"JPEG")
+                        st.download_button("📥 BAIXAR FEED", buf.getvalue(), "feed.jpg", use_container_width=True)
+                    if cb.button("📱 GERAR STORY", use_container_width=True):
+                        img = processar_artes_integrado(url_f, "STORY"); st.image(img, width=280); buf=io.BytesIO(); img.save(buf,"JPEG")
+                        st.download_button("📥 BAIXAR STORY", buf.getvalue(), "story.jpg", use_container_width=True)
 
         with tab2:
-            st.subheader("📤 Mandar Nova Matéria")
-            with st.form("form_envio_horario"):
+            st.subheader("📤 Enviar para o Brayan")
+            with st.form("form_envio_colorido"):
                 f_titulo = st.text_input("Título da Matéria")
                 f_link = st.text_input("Link da Matéria")
-                f_obs = st.text_area("Observação / Instrução")
-                f_urgencia = st.selectbox("Urgência", ["Normal", "URGENTE", "Programar"])
+                f_obs = st.text_area("Observações (Ex: Caprichar no story, Urgente, etc)")
+                f_urgencia = st.select_slider("Nível de Prioridade", options=["Normal", "Programar", "URGENTE"])
                 
-                if st.form_submit_button("Enviar para o Brayan"):
+                if st.form_submit_button("🚀 ENVIAR AGORA", use_container_width=True):
                     if f_titulo:
                         hora_br = (datetime.utcnow() - timedelta(hours=3)).strftime("%H:%M")
-                        link_final = f_link if f_link else "Sem Link"
-                        obs_final = f_obs if f_obs else ""
-                        prio_final = f_urgencia if f_urgencia else "Normal"
                         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
                         c.execute("INSERT INTO pautas_trabalho (titulo, link_ref, status, data_envio, prioridade, observacao) VALUES (?,?,'Pendente',?,?,?)", 
-                                 (f_titulo, link_final, hora_br, prio_final, obs_final))
-                        conn.commit(); conn.close(); st.success("Enviado!"); st.rerun()
-                    else: st.warning("O título é obrigatório!")
+                                 (f_titulo, f_link, hora_br, f_urgencia, f_obs))
+                        conn.commit(); conn.close(); st.success("Pauta enviada com sucesso!"); st.rerun()
+                    else: st.error("O título é obrigatório!")
 
             st.markdown("---")
-            st.subheader("Histórico Recente")
+            st.subheader("📋 Histórico de Envios")
             conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
-            c.execute("SELECT id, titulo, prioridade, data_envio, status FROM pautas_trabalho ORDER BY id DESC LIMIT 5")
+            c.execute("SELECT id, titulo, prioridade, data_envio, status FROM pautas_trabalho ORDER BY id DESC LIMIT 6")
             p_hist = c.fetchall(); conn.close()
-            for p in p_hist:
-                p_id, p_tit, p_urg, p_hor, p_stat = p
-                st.markdown(f"<div class='card-pauta'><b>[{p_urg.upper()}]</b> - {p_hor}<br>{p_tit}<br><small>Status: {p_stat}</small></div>", unsafe_allow_html=True)
-                if st.button("Excluir", key=f"ex_{p_id}"):
-                    conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p_id,)); conn.commit(); conn.close(); st.rerun()
+            
+            # Layout em colunas para o histórico não ficar gigante
+            cols_hist = st.columns(3)
+            for i, p in enumerate(p_hist):
+                with cols_hist[i % 3]:
+                    classe_cor = "card-urgente" if p[2] == "URGENTE" else "card-programar" if p[2] == "Programar" else ""
+                    st.markdown(f"""
+                    <div class='card-pauta {classe_cor}'>
+                        <small>{p[3]} | {p[4]}</small><br>
+                        <b>{p[1]}</b><br>
+                        <span class='tag-status'>{(p[2])}</span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("Remover", key=f"ex_{p[0]}"):
+                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("DELETE FROM pautas_trabalho WHERE id=?",(p[0],)); conn.commit(); conn.close(); st.rerun()
 
         with tab3:
+            st.subheader("📅 Organização Semanal")
             dias = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]
             conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("SELECT * FROM agenda"); p_ag = dict(c.fetchall()); conn.close()
             cols = st.columns(7)
             for i, d in enumerate(dias):
                 with cols[i]:
-                    txt = st.text_area(d, value=p_ag.get(d,""), height=300)
+                    st.markdown(f"<div style='text-align:center; background:#004a99; color:white; border-radius:5px; padding:5px; margin-bottom:5px;'>{d}</div>", unsafe_allow_html=True)
+                    txt = st.text_area(d, value=p_ag.get(d,""), height=250, label_visibility="collapsed")
                     if txt != p_ag.get(d,""):
-                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,txt)); conn.commit(); conn.close(); st.toast(f"Salvo {d}")
+                        conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("INSERT OR REPLACE INTO agenda (dia, pauta) VALUES (?,?)",(d,txt)); conn.commit(); conn.close(); st.toast(f"Agenda de {d} salva!")
 
-    else: # PAINEL BRAYAN
-        st.subheader("📋 Sua Fila de Postagens")
+    else: # PAINEL BRAYAN (VISTA DO EDITOR)
+        st.subheader("📥 Pautas para Postagem")
         conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor()
         c.execute("SELECT id, titulo, link_ref, data_envio, prioridade, observacao FROM pautas_trabalho WHERE status = 'Pendente' ORDER BY id DESC")
         p_br = c.fetchall(); conn.close()
+        
+        if not p_br:
+            st.info("Nenhuma pauta pendente no momento. Bom trabalho!")
+        
         for pb in p_br:
             b_id, b_tit, b_link, b_hora, b_prio, b_obs = pb
+            classe_cor = "card-urgente" if b_prio == "URGENTE" else "card-programar" if b_prio == "Programar" else ""
+            tag_cor = "tag-urgente" if b_prio == "URGENTE" else "tag-programar" if b_prio == "Programar" else "tag-normal"
+            
             st.markdown(f"""
-                <div class="card-pauta">
-                    <span class="tag-status">{b_prio.upper()}</span> | Enviado às: {b_hora}<br>
-                    <p style='font-size: 1.3rem; font-weight: bold; margin-top:10px;'>{b_tit}</p>
-                    {f'<div class="obs-box"><b>Instrução:</b> {b_obs}</div>' if b_obs else ''}
-                    <a href='{b_link}' target='_blank' class='btn-link'>🔗 ABRIR MATÉRIA</a>
+                <div class="card-pauta {classe_cor}">
+                    <span class="tag-status {tag_cor}">{b_prio}</span> | 🕒 {b_hora}<br>
+                    <p style='font-size: 1.4rem; font-weight: bold; margin: 10px 0;'>{b_tit}</p>
+                    {f'<div class="obs-box"><b>💡 Instrução:</b> {b_obs}</div>' if b_obs else ''}
+                    <br>
+                    <a href='{b_link}' target='_blank' class='btn-link'>🔗 ABRIR MATÉRIA NO SITE</a>
                 </div>
             """, unsafe_allow_html=True)
-            if st.button("CONCLUÍDO / POSTADO", key=f"ok_{b_id}"):
+            if st.button("✅ MARCAR COMO POSTADO", key=f"ok_{b_id}", use_container_width=True):
                 conn = sqlite3.connect('agenda_destaque.db'); c = conn.cursor(); c.execute("UPDATE pautas_trabalho SET status='✅ Concluído' WHERE id=?",(b_id,)); conn.commit(); conn.close(); st.rerun()
 
-    if st.sidebar.button("Sair"): 
-        st.session_state.autenticado = False
-        st.rerun()
+    # Barra Lateral
+    with st.sidebar:
+        st.write(f"Conectado como: **{st.session_state.perfil.upper()}**")
+        if st.button("🚪 Sair do Sistema", use_container_width=True):
+            st.session_state.autenticado = False; st.rerun()

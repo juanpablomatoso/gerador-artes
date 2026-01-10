@@ -493,15 +493,6 @@ else:
             ["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"]
         )
 
-        # ============================================================
-        # INTERFACE PRINCIPAL
-        # ============================================================
-        st.markdown('<div class="boas-vindas">Bem-vindo, Juan!</div>', unsafe_allow_html=True)
-
-        tab1, tab2, tab3 = st.tabs(
-            ["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"]
-        )
-
         with tab1:
             st.markdown(
                 '<p class="descricao-aba">Aqui você gera automaticamente os posts para Instagram.</p>',
@@ -1149,6 +1140,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

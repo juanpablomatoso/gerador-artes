@@ -471,13 +471,49 @@ if not st.session_state.autenticado:
         )
 
 else:
-    # ============================================================
+# ============================================================
     # 10) INTERFACE INTERNA
     # ============================================================
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
+    # Função interna para renderizar o Dashboard em qualquer perfil
+    def render_dashboard():
+        try:
+            conn = get_conn()
+            c = conn.cursor()
+            
+            # 1. Pautas Pendentes (Fila do Brayan)
+            c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Pendente'")
+            total_pautas = c.fetchone()[0]
+            
+            # 2. Tarefas de HOJE na Agenda
+            hoje_iso = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d")
+            c.execute("SELECT COUNT(*) FROM agenda_itens WHERE data_ref = ? AND status = 'Pendente'", (hoje_iso,))
+            tarefas_hoje = c.fetchone()[0]
+            
+            # 3. Notícias no Portal (Cache)
+            ultimas_noticias = buscar_ultimas()
+            total_news = len(ultimas_noticias)
+            conn.close()
+
+            st.markdown("### 📈 Resumo Operacional")
+            db1, db2, db3 = st.columns(3)
+            with db1:
+                st.metric(label="Pautas Pendentes", value=total_pautas)
+            with db2:
+                st.metric(label="Agenda para Hoje", value=tarefas_hoje)
+            with db3:
+                st.metric(label="Notícias no Site", value=total_news)
+            st.markdown("---")
+        except Exception as e:
+            st.error(f"Erro ao carregar dashboard: {e}")
+
     if st.session_state.perfil == "juan":
         st.markdown('<div class="boas-vindas">Bem-vindo, Juan!</div>', unsafe_allow_html=True)
+        
+        # Chamada do Dashboard
+        render_dashboard()
+
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
 
         with tab1:
@@ -1119,6 +1155,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

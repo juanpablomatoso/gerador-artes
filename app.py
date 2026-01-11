@@ -471,78 +471,13 @@ if not st.session_state.autenticado:
         )
 
 else:
-# ============================================================
-    # 10) INTERFACE INTERNA - DASHBOARD COMPLETO E PROFISSIONAL
+    # ============================================================
+    # 10) INTERFACE INTERNA
     # ============================================================
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
-    # Função interna para renderizar o Dashboard Premium
-    def render_dashboard_premium():
-        try:
-            conn = get_conn()
-            c = conn.cursor()
-            
-            # Coleta de Dados para o Dashboard
-            c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Pendente'")
-            pendentes = c.fetchone()[0]
-            
-            c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status IN ('Concluído', 'Postado')")
-            concluidas = c.fetchone()[0]
-            
-            hoje_iso = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d")
-            c.execute("SELECT COUNT(*) FROM agenda_itens WHERE data_ref = ? AND status = 'Pendente'", (hoje_iso,))
-            agenda_hoje = c.fetchone()[0]
-            
-            ultimas_noticias = buscar_ultimas()
-            total_news = len(ultimas_noticias)
-            conn.close()
-
-            # Layout do Dashboard
-            st.markdown("### 📊 Cockpit de Gestão")
-            
-            # Linha 1: Métricas em Cards
-            m1, m2, m3, m4 = st.columns(4)
-            with m1:
-                st.metric(label="Fila Brayan", value=pendentes, delta=f"{pendentes} pendentes", delta_color="inverse")
-            with m2:
-                st.metric(label="Agenda Hoje", value=agenda_hoje, delta="Urgente" if agenda_hoje > 0 else "OK")
-            with m3:
-                # Cálculo de Eficiência
-                total = pendentes + concluidas
-                eficiencia = (concluidas / total * 100) if total > 0 else 100
-                st.metric(label="Eficiência", value=f"{eficiencia:.0f}%")
-            with m4:
-                st.metric(label="Radar de Notícias", value=total_news)
-
-            # Linha 2: Gráfico e Avisos
-            col_graf, col_status = st.columns([2, 1])
-            
-            with col_graf:
-                # Mini gráfico de produtividade
-                st.write("**Produtividade (Pautas)**")
-                chart_data = {"Pendentes": pendentes, "Concluídas": concluidas}
-                st.bar_chart(chart_data, color="#004a99", height=180)
-
-            with col_status:
-                st.write("**Alertas do Sistema**")
-                if pendentes > 5:
-                    st.error(f"⚠️ Atenção: {pendentes} pautas aguardando!")
-                elif agenda_hoje > 0:
-                    st.warning(f"📅 Há {agenda_hoje} compromissos para hoje.")
-                else:
-                    st.success("✅ Operação em dia!")
-
-            st.markdown("---")
-        except Exception as e:
-            st.error(f"Erro ao carregar dashboard: {e}")
-
-    # --- RENDERIZAÇÃO POR PERFIL ---
     if st.session_state.perfil == "juan":
-        st.markdown('<div class="boas-vindas">Bem-vindo, Juan! 👋</div>', unsafe_allow_html=True)
-        
-        # Chamada do Dashboard Premium
-        render_dashboard_premium()
-
+        st.markdown('<div class="boas-vindas">Bem-vindo, Juan!</div>', unsafe_allow_html=True)
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
 
         with tab1:
@@ -654,104 +589,75 @@ else:
                         conn.close()
                         st.rerun()
 
-# ============================================================
-        # 📅 ABA AGENDA - VERSÃO PROFISSIONAL (CORRIGIDA)
-        # ============================================================
+        # =========================
+        # 🔽 ÚNICA ALTERAÇÃO AQUI (ABA AGENDA)
+        # =========================
         with tab3:
             st.markdown(
-                '<p class="descricao-aba">Planejamento Editorial - Exibindo automaticamente os próximos 7 dias e pendências.</p>',
+                '<p class="descricao-aba">Agenda editorial do portal – tarefas com status, filtro por dia/semana e edição.</p>',
                 unsafe_allow_html=True,
             )
 
+            # Cria tabela nova SEM mexer na antiga (agenda dia/pauta)
             conn = get_conn()
-            hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
-            fim_semana = hoje_dt + timedelta(days=7)
-
-            # --- 1) INPUT DE NOVA TAREFA ---
-            with st.form("form_agenda_nova_v2"):
-                st.markdown("#### ✨ Adicionar Novo Compromisso")
-                col_a, col_b = st.columns([1.5, 1])
-                with col_a:
-                    a_titulo = st.text_input("Título da tarefa")
-                    a_desc = st.text_area("Observações", height=68)
-                with col_b:
-                    a_data = st.date_input("Data da Tarefa", value=hoje_dt, format="DD/MM/YYYY")
-                    a_status = st.selectbox("Status", ["Pendente", "Concluído"])
-
-                if st.form_submit_button("➕ AGENDAR NO PORTAL", use_container_width=True, type="primary"):
-                    if a_titulo:
-                        agora_str = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-                        c = conn.cursor()
-                        c.execute(
-                            "INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
-                            (a_data.strftime("%Y-%m-%d"), a_titulo, a_desc, a_status, st.session_state.perfil, agora_str),
-                        )
-                        conn.commit()
-                        st.success(f"Tarefa agendada para {a_data.strftime('%d/%m/%Y')}!")
-                        st.rerun()
-
-            st.markdown("---")
-            st.subheader(f"📌 Próximos 7 Dias (até {fim_semana.strftime('%d/%m/%Y')})")
-
-            # --- 2) LISTAGEM INTELIGENTE ---
             c = conn.cursor()
             c.execute(
                 """
-                SELECT id, data_ref, titulo, descricao, status, criado_por 
-                FROM agenda_itens 
-                WHERE (data_ref BETWEEN ? AND ?) OR (status = 'Pendente' AND data_ref < ?)
-                ORDER BY status DESC, data_ref ASC
-                """,
-                (hoje_dt.strftime("%Y-%m-%d"), fim_semana.strftime("%Y-%m-%d"), hoje_dt.strftime("%Y-%m-%d"))
+                CREATE TABLE IF NOT EXISTS agenda_itens (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    data_ref TEXT NOT NULL,
+                    titulo TEXT NOT NULL,
+                    descricao TEXT,
+                    status TEXT NOT NULL DEFAULT 'Pendente',
+                    criado_por TEXT,
+                    criado_em TEXT
+                )
+                """
             )
-            itens = c.fetchall()
+            conn.commit()
             conn.close()
 
-            if not itens:
-                st.info("Nenhuma tarefa agendada para os próximos dias.")
-            else:
-                for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
-                    dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
-                    data_br = dt_obj.strftime("%d/%m/%Y")
-                    
-                    if status == "Concluído":
-                        borda, fundo, tag = "#198754", "#f1fff6", "✅ CONCLUÍDO"
-                    elif dt_obj < hoje_dt:
-                        borda, fundo, tag = "#dc3545", "#fff5f5", "⛔ ATRASADO"
-                    elif dt_obj == hoje_dt:
-                        borda, fundo, tag = "#ffc107", "#fffdf5", "📌 HOJE"
-                    else:
-                        borda, fundo, tag = "#0d6efd", "#f3f7ff", "🗓️ PRÓXIMO"
+            hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
 
-                    st.markdown(
-                        f"""
-                        <div style="background:{fundo}; padding:15px; border-radius:12px; border-left:8px solid {borda}; margin-bottom:12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-weight:bold; color:#333;">{data_br} — {tag}</span>
-                                <small style="color:#777;">Resp: {criado_por.upper()}</small>
-                            </div>
-                            <div style="font-size:1.2rem; font-weight:800; margin-top:8px; color:#111;">{titulo}</div>
-                        </div>
-                        """, unsafe_allow_html=True
-                    )
-                    
-                    if descricao:
-                        st.info(f"📝 {descricao}")
+            col_f1, col_f2 = st.columns([1.2, 1])
+            with col_f1:
+                filtro_dt = st.date_input("Data de referência", value=hoje_dt)
+            with col_f2:
+                visao = st.selectbox("Visualização", ["Dia", "Semana", "Todas"], index=1)
 
-                    col_bt1, col_bt2, _ = st.columns([1, 1, 4])
-                    with col_bt1:
-                        if st.button("✔/↩", key=f"tg_{tid}"):
-                            new_st = "Pendente" if status == "Concluído" else "Concluído"
-                            cx = get_conn()
-                            cx.execute("UPDATE agenda_itens SET status=? WHERE id=?", (new_st, tid))
-                            cx.commit()
-                            st.rerun()
-                    with col_bt2:
-                        if st.button("🗑️", key=f"del_{tid}"):
-                            cx = get_conn()
-                            cx.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
-                            cx.commit()
-                            st.rerun()
+            # Form: nova tarefa
+            with st.form("form_agenda_nova"):
+                col_a, col_b = st.columns([1.3, 1])
+                with col_a:
+                    a_titulo = st.text_input("Título da tarefa")
+                    a_desc = st.text_area("Descrição (opcional)", height=90)
+                with col_b:
+                    a_data = st.date_input("Data da tarefa", value=filtro_dt)
+                    a_status = st.selectbox("Status", ["Pendente", "Concluído"], index=0)
+
+                if st.form_submit_button("➕ ADICIONAR À AGENDA", use_container_width=True):
+                    if a_titulo and a_data:
+                        agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute(
+                            """
+                            INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em)
+                            VALUES (?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                a_data.strftime("%Y-%m-%d"),
+                                a_titulo,
+                                a_desc,
+                                a_status,
+                                "juan",
+                                agora,
+                            ),
+                        )
+                        conn.commit()
+                        conn.close()
+                        st.success("Tarefa adicionada.")
+                        st.rerun()
                     else:
                         st.warning("Informe pelo menos a data e o título.")
 
@@ -921,11 +827,7 @@ else:
         # ============================================================
         # PAINEL BRAYAN
         # ============================================================
-        st.markdown('<div class="boas-vindas">Olá, Brayan! Bom trabalho. 🚀</div>', unsafe_allow_html=True)
-        
-        # Dashboard aparece no topo para o Brayan também
-        render_dashboard_premium()
-
+        st.markdown('<div class="boas-vindas">Olá, Brayan! Bom trabalho.</div>', unsafe_allow_html=True)
         st.markdown(
             '<p class="descricao-aba">Confira abaixo as matérias enviadas pelo Juan.</p>',
             unsafe_allow_html=True,
@@ -1217,12 +1119,6 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
-
-
-
-
-
-
 
 
 

@@ -589,239 +589,91 @@ else:
                         conn.close()
                         st.rerun()
 
-        # =========================
-        # 🔽 ÚNICA ALTERAÇÃO AQUI (ABA AGENDA)
-        # =========================
+        # ============================================================
+        # 📅 ABA AGENDA - VERSÃO PROFISSIONAL (FOCO SEMANAL)
+        # ============================================================
         with tab3:
-            st.markdown(
-                '<p class="descricao-aba">Agenda editorial do portal – tarefas com status, filtro por dia/semana e edição.</p>',
-                unsafe_allow_html=True,
-            )
+            st.markdown('<p class="descricao-aba">Planejamento Editorial - Exibindo automaticamente os próximos 7 dias e pendências.</p>', unsafe_allow_html=True)
 
-            # Cria tabela nova SEM mexer na antiga (agenda dia/pauta)
             conn = get_conn()
-            c = conn.cursor()
-            c.execute(
-                """
-                CREATE TABLE IF NOT EXISTS agenda_itens (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    data_ref TEXT NOT NULL,
-                    titulo TEXT NOT NULL,
-                    descricao TEXT,
-                    status TEXT NOT NULL DEFAULT 'Pendente',
-                    criado_por TEXT,
-                    criado_em TEXT
-                )
-                """
-            )
-            conn.commit()
-            conn.close()
-
             hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
+            fim_semana = hoje_dt + timedelta(days=7)
 
-            col_f1, col_f2 = st.columns([1.2, 1])
-            with col_f1:
-                filtro_dt = st.date_input("Data de referência", value=hoje_dt)
-            with col_f2:
-                visao = st.selectbox("Visualização", ["Dia", "Semana", "Todas"], index=1)
-
-            # Form: nova tarefa
-            with st.form("form_agenda_nova"):
-                col_a, col_b = st.columns([1.3, 1])
+            # --- 1) INPUT DE NOVA TAREFA ---
+            with st.form("form_agenda_nova_v3"):
+                st.markdown("#### ✨ Novo Compromisso")
+                col_a, col_b = st.columns([2, 1])
                 with col_a:
-                    a_titulo = st.text_input("Título da tarefa")
-                    a_desc = st.text_area("Descrição (opcional)", height=90)
+                    a_titulo = st.text_input("Título")
+                    a_desc = st.text_area("Observações", height=65)
                 with col_b:
-                    a_data = st.date_input("Data da tarefa", value=filtro_dt)
-                    a_status = st.selectbox("Status", ["Pendente", "Concluído"], index=0)
-
-                if st.form_submit_button("➕ ADICIONAR À AGENDA", use_container_width=True):
-                    if a_titulo and a_data:
-                        agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-                        conn = get_conn()
+                    a_data = st.date_input("Data", value=hoje_dt, format="DD/MM/YYYY")
+                    a_status = st.selectbox("Status", ["Pendente", "Concluído"])
+                
+                if st.form_submit_button("➕ AGENDAR", use_container_width=True, type="primary"):
+                    if a_titulo:
+                        agora_str = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
                         c = conn.cursor()
                         c.execute(
-                            """
-                            INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em)
-                            VALUES (?, ?, ?, ?, ?, ?)
-                            """,
-                            (
-                                a_data.strftime("%Y-%m-%d"),
-                                a_titulo,
-                                a_desc,
-                                a_status,
-                                "juan",
-                                agora,
-                            ),
+                            "INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
+                            (a_data.strftime("%Y-%m-%d"), a_titulo, a_desc, a_status, st.session_state.perfil, agora_str)
                         )
                         conn.commit()
-                        conn.close()
-                        st.success("Tarefa adicionada.")
                         st.rerun()
-                    else:
-                        st.warning("Informe pelo menos a data e o título.")
 
             st.markdown("---")
-            st.subheader("📌 Tarefas")
+            st.subheader(f"📌 Próximos 7 Dias (até {fim_semana.strftime('%d/%m/%Y')})")
 
-            # Monta filtro SQL
-            filtro_params = []
-            where = "1=1"
-
-            if visao == "Dia":
-                where += " AND data_ref = ?"
-                filtro_params.append(filtro_dt.strftime("%Y-%m-%d"))
-            elif visao == "Semana":
-                # Semana: segunda a domingo
-                dow = filtro_dt.weekday()  # seg=0
-                start = filtro_dt - timedelta(days=dow)
-                end = start + timedelta(days=6)
-                where += " AND data_ref BETWEEN ? AND ?"
-                filtro_params.extend([start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")])
-
-            conn = get_conn()
+            # --- 2) LISTAGEM INTELIGENTE ---
             c = conn.cursor()
             c.execute(
-                f"""
-                SELECT id, data_ref, titulo, descricao, status, criado_por, criado_em
-                FROM agenda_itens
-                WHERE {where}
-                ORDER BY data_ref ASC, id DESC
+                """
+                SELECT id, data_ref, titulo, descricao, status, criado_por 
+                FROM agenda_itens 
+                WHERE (data_ref BETWEEN ? AND ?) OR (status = 'Pendente' AND data_ref < ?)
+                ORDER BY status DESC, data_ref ASC
                 """,
-                tuple(filtro_params),
+                (hoje_dt.strftime("%Y-%m-%d"), fim_semana.strftime("%Y-%m-%d"), hoje_dt.strftime("%Y-%m-%d"))
             )
             itens = c.fetchall()
-            conn.close()
 
             if not itens:
-                st.info("Nenhuma tarefa encontrada para o filtro selecionado.")
+                st.info("Nenhuma tarefa para os próximos 7 dias.")
             else:
-                hoje_iso = hoje_dt.strftime("%Y-%m-%d")
-
-                for (tid, data_ref, titulo, descricao, status, criado_por, criado_em) in itens:
-                    # lógica de cores (sem precisar alterar CSS global)
-                    # atrasado pendente = vermelho; hoje pendente = amarelo; futuro pendente = azul; concluído = verde
+                for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
+                    dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
+                    data_br = dt_obj.strftime("%d/%m/%Y")
+                    
                     if status == "Concluído":
-                        borda = "#198754"  # verde
-                        fundo = "#f1fff6"
-                        tag = "✅ CONCLUÍDO"
+                        cor, tag, fundo = "#198754", "✅ CONCLUÍDO", "#f1fff6"
+                    elif dt_obj < hoje_dt:
+                        cor, tag, fundo = "#dc3545", "⛔ ATRASADO", "#fff5f5"
+                    elif dt_obj == hoje_dt:
+                        cor, tag, fundo = "#ffc107", "📌 HOJE", "#fffdf5"
                     else:
-                        if data_ref < hoje_iso:
-                            borda = "#dc3545"  # vermelho
-                            fundo = "#fff5f5"
-                            tag = "⛔ ATRASADO"
-                        elif data_ref == hoje_iso:
-                            borda = "#ffc107"  # amarelo
-                            fundo = "#fffdf5"
-                            tag = "📌 HOJE"
-                        else:
-                            borda = "#0d6efd"  # azul
-                            fundo = "#f3f7ff"
-                            tag = "🗓️ PENDENTE"
+                        cor, tag, fundo = "#0d6efd", "🗓️ PRÓXIMO", "#f3f7ff"
 
-                    data_br = datetime.strptime(data_ref, "%Y-%m-%d").strftime("%d/%m/%Y")
-
-                    # Card
-                    st.markdown(
-                        f"""
-                        <div style="background:{fundo}; padding:14px; border-radius:12px; border-left:6px solid {borda}; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:10px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px;">
-                                <div>
-                                    <div style="font-size:0.85rem; color:#555;"><b>{data_br}</b> • <span style="opacity:.9;">{tag}</span></div>
-                                    <div style="font-size:1.15rem; font-weight:700; color:#111; margin-top:4px;">{titulo}</div>
-                                </div>
-                                <div style="font-size:0.8rem; color:#666; text-align:right;">
-                                    <div>{(criado_por or "").upper()}</div>
-                                </div>
-                            </div>
+                    st.markdown(f"""
+                        <div style="background:{fundo}; padding:12px; border-radius:10px; border-left:6px solid {cor}; margin-bottom:10px;">
+                            <small>{data_br} — <b>{tag}</b> | Por: {criado_por.upper()}</small><br>
+                            <span style="font-size:1.1rem; font-weight:bold;">{titulo}</span>
                         </div>
-                        """,
-                        unsafe_allow_html=True,
-                    )
-
+                    """, unsafe_allow_html=True)
+                    
                     if descricao:
-                        st.markdown(f"<div class='obs-box'>{descricao}</div>", unsafe_allow_html=True)
+                        st.caption(f"📝 {descricao}")
 
-                    # Ações
-                    col1, col2, col3, col4 = st.columns([1, 1, 1, 2])
-
-                    with col1:
-                        if status == "Concluído":
-                            if st.button("↩️ Reabrir", key=f"ag_reabrir_{tid}", use_container_width=True):
-                                conn = get_conn()
-                                c = conn.cursor()
-                                c.execute("UPDATE agenda_itens SET status='Pendente' WHERE id=?", (tid,))
-                                conn.commit()
-                                conn.close()
-                                st.rerun()
-                        else:
-                            if st.button("✅ Concluir", key=f"ag_concluir_{tid}", use_container_width=True):
-                                conn = get_conn()
-                                c = conn.cursor()
-                                c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
-                                conn.commit()
-                                conn.close()
-                                st.rerun()
-
-                    with col2:
-                        if st.button("✏️ Editar", key=f"ag_editar_{tid}", use_container_width=True):
-                            st.session_state[f"edit_ag_{tid}"] = True
-
-                    with col3:
-                        if st.button("🗑️ Excluir", key=f"ag_excluir_{tid}", use_container_width=True):
-                            conn = get_conn()
-                            c = conn.cursor()
-                            c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
-                            conn.commit()
-                            conn.close()
-                            st.rerun()
-
-                    # Editor inline
-                    if st.session_state.get(f"edit_ag_{tid}", False):
-                        with st.form(f"form_edit_ag_{tid}"):
-                            e1, e2 = st.columns([1.2, 1])
-                            with e1:
-                                novo_titulo = st.text_input("Título", value=titulo)
-                                nova_desc = st.text_area("Descrição", value=(descricao or ""), height=90)
-                            with e2:
-                                nova_data = st.date_input("Data", value=datetime.strptime(data_ref, "%Y-%m-%d").date())
-                                novo_status = st.selectbox(
-                                    "Status",
-                                    ["Pendente", "Concluído"],
-                                    index=0 if status == "Pendente" else 1,
-                                )
-
-                            c_save, c_cancel = st.columns(2)
-                            salvar = c_save.form_submit_button("💾 Salvar", use_container_width=True, type="primary")
-                            cancelar = c_cancel.form_submit_button("Cancelar", use_container_width=True)
-
-                            if salvar:
-                                conn = get_conn()
-                                c = conn.cursor()
-                                c.execute(
-                                    """
-                                    UPDATE agenda_itens
-                                    SET data_ref=?, titulo=?, descricao=?, status=?
-                                    WHERE id=?
-                                    """,
-                                    (
-                                        nova_data.strftime("%Y-%m-%d"),
-                                        novo_titulo,
-                                        nova_desc,
-                                        novo_status,
-                                        tid,
-                                    ),
-                                )
-                                conn.commit()
-                                conn.close()
-                                st.session_state[f"edit_ag_{tid}"] = False
-                                st.rerun()
-
-                            if cancelar:
-                                st.session_state[f"edit_ag_{tid}"] = False
-                                st.rerun()
-
-                    st.markdown("---")
+                    b1, b2, _ = st.columns([0.8, 0.8, 4])
+                    if b1.button("✅/↩", key=f"tgl_{tid}"):
+                        novo_st = "Pendente" if status == "Concluído" else "Concluído"
+                        c.execute("UPDATE agenda_itens SET status=? WHERE id=?", (novo_st, tid))
+                        conn.commit()
+                        st.rerun()
+                    if b2.button("🗑️", key=f"exc_{tid}"):
+                        c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
+                        conn.commit()
+                        st.rerun()
+            conn.close()
 
     else:
         # ============================================================
@@ -1119,6 +971,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

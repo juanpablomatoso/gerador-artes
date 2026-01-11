@@ -892,7 +892,11 @@ else:
         # ============================================================
         # PAINEL BRAYAN
         # ============================================================
-        st.markdown('<div class="boas-vindas">Olá, Brayan! Bom trabalho.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="boas-vindas">Olá, Brayan! Bom trabalho. 🚀</div>', unsafe_allow_html=True)
+        
+        # Dashboard aparece no topo para o Brayan também
+        render_dashboard_premium()
+
         st.markdown(
             '<p class="descricao-aba">Confira abaixo as matérias enviadas pelo Juan.</p>',
             unsafe_allow_html=True,
@@ -1184,6 +1188,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

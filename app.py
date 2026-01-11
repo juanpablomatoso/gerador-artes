@@ -590,17 +590,24 @@ else:
                         st.rerun()
 
         # ============================================================
-        # 📅 ABA AGENDA - CENTRAL DE PLANEJAMENTO ESTRATÉGICO
+        # 📅 ABA AGENDA - CENTRAL ESTRATÉGICA (LIMPEZA AUTOMÁTICA)
         # ============================================================
         with tab3:
-            st.markdown('<p class="descricao-aba">Gestão Editorial: Agende novos compromissos e monitore os próximos 7 dias.</p>', unsafe_allow_html=True)
+            st.markdown('<p class="descricao-aba">Gestão Editorial: Pautas futuras e limpeza automática de itens concluídos.</p>', unsafe_allow_html=True)
 
             conn = get_conn()
+            c = conn.cursor()
+            
             # Ajuste de fuso horário (Toledo-PR)
             hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
-            fim_semana = hoje_dt + timedelta(days=7)
+            hoje_str = hoje_dt.strftime("%Y-%m-%d")
 
-            # --- 1) LANÇAMENTO DE COMPROMISSOS (DESIGN LIMPO) ---
+            # --- 1) ROTINA DE LIMPEZA AUTOMÁTICA ---
+            # Remove itens CONCLUÍDOS que já passaram da data de hoje
+            c.execute("DELETE FROM agenda_itens WHERE status = 'Concluído' AND data_ref < ?", (hoje_str,))
+            conn.commit()
+
+            # --- 2) LANÇAMENTO DE COMPROMISSOS ---
             with st.container():
                 with st.form("form_agenda_profissional", clear_on_submit=True):
                     st.markdown("##### ✍️ Lançar Novo Compromisso")
@@ -611,14 +618,12 @@ else:
                         a_desc = st.text_area("Detalhes extras (opcional)", height=68, placeholder="Informações de contato, local ou pauta...")
                     
                     with col_input_2:
-                        # Data no padrão 11/01/2026
                         a_data = st.date_input("Data de Execução", value=hoje_dt, format="DD/MM/YYYY")
-                        st.info("💡 Novos itens entram automaticamente como 'Pendentes'.")
+                        st.info("💡 Itens concluídos de dias passados são apagados automaticamente.")
 
                     if st.form_submit_button("🚀 AGENDAR COMPROMISSO", use_container_width=True, type="primary"):
                         if a_titulo:
                             agora_str = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-                            c = conn.cursor()
                             c.execute(
                                 """INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) 
                                    VALUES (?, ?, ?, ?, ?, ?)""",
@@ -628,14 +633,30 @@ else:
                             st.toast(f"Agendado para {a_data.strftime('%d/%m/%Y')}", icon="📅")
                             st.rerun()
                         else:
-                            st.error("Por favor, preencha o título do compromisso.")
+                            st.error("Por favor, preencha o título.")
 
             st.markdown("---")
             
-            # --- 2) VISUALIZAÇÃO DA AGENDA (INTELIGÊNCIA DE PRAZOS) ---
-            st.subheader(f"📋 Cronograma para os Próximos 7 Dias")
+            # --- 3) FILTRO DE VISUALIZAÇÃO (Para ver o mês ou ano) ---
+            col_titulo, col_filtro = st.columns([2, 1])
+            with col_titulo:
+                st.subheader("📋 Cronograma de Atividades")
+            with col_filtro:
+                opcao_filtro = st.selectbox(
+                    "Ver período:",
+                    ["Próximos 7 dias", "Próximos 15 dias", "Próximos 30 dias", "Tudo (Ano Inteiro)"],
+                    index=0
+                )
 
-            c = conn.cursor()
+            # Define o limite de dias com base no filtro
+            dias_limite = 7
+            if "15" in opcao_filtro: dias_limite = 15
+            elif "30" in opcao_filtro: dias_limite = 30
+            elif "Tudo" in opcao_filtro: dias_limite = 365
+
+            data_limite_filtro = (hoje_dt + timedelta(days=dias_limite)).strftime("%Y-%m-%d")
+
+            # --- 4) BUSCA DE DADOS ---
             c.execute(
                 """
                 SELECT id, data_ref, titulo, descricao, status, criado_por 
@@ -648,20 +669,17 @@ else:
                          ELSE 4 END, 
                     data_ref ASC
                 """,
-                (hoje_dt.strftime("%Y-%m-%d"), fim_semana.strftime("%Y-%m-%d"), 
-                 hoje_dt.strftime("%Y-%m-%d"), hoje_dt.strftime("%Y-%m-%d"), 
-                 hoje_dt.strftime("%Y-%m-%d"))
+                (hoje_str, data_limite_filtro, hoje_str, hoje_str, hoje_str)
             )
             itens = c.fetchall()
 
             if not itens:
-                st.info("Tudo em dia! Nenhuma tarefa pendente ou agendada para esta semana.")
+                st.info(f"Nenhum compromisso encontrado para o filtro: {opcao_filtro}")
             else:
                 for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
                     dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
                     data_br = dt_obj.strftime("%d/%m/%Y")
                     
-                    # Logica Profissional de Cores e Tags
                     if status == "Concluído":
                         cor, tag, fundo = "#198754", "✅ CONCLUÍDO", "#f1fff6"
                     elif dt_obj < hoje_dt:
@@ -671,7 +689,6 @@ else:
                     else:
                         cor, tag, fundo = "#0d6efd", "🗓️ AGENDADO", "#f3f7ff"
 
-                    # Card Estilizado
                     st.markdown(f"""
                         <div style="background:{fundo}; padding:16px; border-radius:12px; border-left:10px solid {cor}; margin-bottom:12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08);">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -686,7 +703,6 @@ else:
                         with st.expander("🔍 Ver detalhes da tarefa"):
                             st.write(descricao)
 
-                    # Ações de Gerenciamento
                     col_bt1, col_bt2, col_bt3, _ = st.columns([1, 1, 1, 3])
                     with col_bt1:
                         btn_label = "↩️ Reabrir" if status == "Concluído" else "✔️ Concluir"
@@ -701,7 +717,6 @@ else:
                             conn.commit()
                             st.rerun()
                     with col_bt3:
-                        # Opção para mover para amanhã rapidamente
                         if status == "Pendente" and dt_obj <= hoje_dt:
                             if st.button("🕒 +1 Dia", key=f"mvr_{tid}", use_container_width=True):
                                 nova_data_adiada = dt_obj + timedelta(days=1)
@@ -1006,6 +1021,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

@@ -694,7 +694,6 @@ else:
                         conn.commit()
                         st.success(f"Tarefa agendada com sucesso para {a_data.strftime('%d/%m/%Y')}!")
                         st.rerun()
-
             st.markdown("---")
             
             # --- 2) LISTAGEM INTELIGENTE ---
@@ -1226,6 +1225,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

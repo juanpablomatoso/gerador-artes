@@ -472,47 +472,76 @@ if not st.session_state.autenticado:
 
 else:
 # ============================================================
-    # 10) INTERFACE INTERNA
+    # 10) INTERFACE INTERNA - DASHBOARD COMPLETO E PROFISSIONAL
     # ============================================================
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
-    # Função interna para renderizar o Dashboard em qualquer perfil
-    def render_dashboard():
+    # Função interna para renderizar o Dashboard Premium
+    def render_dashboard_premium():
         try:
             conn = get_conn()
             c = conn.cursor()
             
-            # 1. Pautas Pendentes (Fila do Brayan)
+            # Coleta de Dados para o Dashboard
             c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Pendente'")
-            total_pautas = c.fetchone()[0]
+            pendentes = c.fetchone()[0]
             
-            # 2. Tarefas de HOJE na Agenda
+            c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status IN ('Concluído', 'Postado')")
+            concluidas = c.fetchone()[0]
+            
             hoje_iso = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d")
             c.execute("SELECT COUNT(*) FROM agenda_itens WHERE data_ref = ? AND status = 'Pendente'", (hoje_iso,))
-            tarefas_hoje = c.fetchone()[0]
+            agenda_hoje = c.fetchone()[0]
             
-            # 3. Notícias no Portal (Cache)
             ultimas_noticias = buscar_ultimas()
             total_news = len(ultimas_noticias)
             conn.close()
 
-            st.markdown("### 📈 Resumo Operacional")
-            db1, db2, db3 = st.columns(3)
-            with db1:
-                st.metric(label="Pautas Pendentes", value=total_pautas)
-            with db2:
-                st.metric(label="Agenda para Hoje", value=tarefas_hoje)
-            with db3:
-                st.metric(label="Notícias no Site", value=total_news)
+            # Layout do Dashboard
+            st.markdown("### 📊 Cockpit de Gestão")
+            
+            # Linha 1: Métricas em Cards
+            m1, m2, m3, m4 = st.columns(4)
+            with m1:
+                st.metric(label="Fila Brayan", value=pendentes, delta=f"{pendentes} pendentes", delta_color="inverse")
+            with m2:
+                st.metric(label="Agenda Hoje", value=agenda_hoje, delta="Urgente" if agenda_hoje > 0 else "OK")
+            with m3:
+                # Cálculo de Eficiência
+                total = pendentes + concluidas
+                eficiencia = (concluidas / total * 100) if total > 0 else 100
+                st.metric(label="Eficiência", value=f"{eficiencia:.0f}%")
+            with m4:
+                st.metric(label="Radar de Notícias", value=total_news)
+
+            # Linha 2: Gráfico e Avisos
+            col_graf, col_status = st.columns([2, 1])
+            
+            with col_graf:
+                # Mini gráfico de produtividade
+                st.write("**Produtividade (Pautas)**")
+                chart_data = {"Pendentes": pendentes, "Concluídas": concluidas}
+                st.bar_chart(chart_data, color="#004a99", height=180)
+
+            with col_status:
+                st.write("**Alertas do Sistema**")
+                if pendentes > 5:
+                    st.error(f"⚠️ Atenção: {pendentes} pautas aguardando!")
+                elif agenda_hoje > 0:
+                    st.warning(f"📅 Há {agenda_hoje} compromissos para hoje.")
+                else:
+                    st.success("✅ Operação em dia!")
+
             st.markdown("---")
         except Exception as e:
             st.error(f"Erro ao carregar dashboard: {e}")
 
+    # --- RENDERIZAÇÃO POR PERFIL ---
     if st.session_state.perfil == "juan":
-        st.markdown('<div class="boas-vindas">Bem-vindo, Juan!</div>', unsafe_allow_html=True)
+        st.markdown('<div class="boas-vindas">Bem-vindo, Juan! 👋</div>', unsafe_allow_html=True)
         
-        # Chamada do Dashboard
-        render_dashboard()
+        # Chamada do Dashboard Premium
+        render_dashboard_premium()
 
         tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
 
@@ -1155,6 +1184,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

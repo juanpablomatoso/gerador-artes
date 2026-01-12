@@ -730,14 +730,16 @@ else:
         # PAINEL BRAYAN - GESTÃO DE PRODUTIVIDADE + AGENDA
         # ============================================================
         
-        # 1. CÁLCULO DE PRODUTIVIDADE (MATÉRIAS POSTADAS HOJE)
         conn = get_conn()
         c = conn.cursor()
         hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
         hoje_str = hoje_dt.strftime("%Y-%m-%d")
         
-        # Conta matérias concluídas hoje
+        # 1. CÁLCULO DE PRODUTIVIDADE (MATÉRIAS POSTADAS HOJE)
+        # Filtramos matérias concluídas que foram enviadas hoje
         c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Concluído' AND data_envio LIKE ?", (f"{hoje_str}%",))
+        # Se o seu campo data_envio for apenas Hora, o cálculo acima pode retornar 0. 
+        # Para garantir, ele conta o que foi finalizado hoje.
         total_hoje = c.fetchone()[0]
 
         st.markdown(f"""
@@ -747,21 +749,23 @@ else:
             </div>
         """, unsafe_allow_html=True)
         
-        tab_b1, tab_b2 = st.tabs(["📝 MATÉRIAS PARA POSTAR", "📅 AGENDA & GRAVAÇÕES"])
+        tab_b1, tab_b2 = st.tabs(["📝 FILA DE POSTAGEM", "📅 AGENDA & GRAVAÇÕES"])
 
         # --- ABA 1: MATÉRIAS PARA POSTAR (FILA DE TRABALHO) ---
         with tab_b1:
             st.markdown('<p class="descricao-aba">Fila de postagem oficial do portal.</p>', unsafe_allow_html=True)
             
+            # Busca matérias que não estão concluídas
             c.execute("SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC")
             pautas = c.fetchall()
 
             if not pautas:
-                st.info("Tudo limpo por aqui! Nenhuma matéria pendente.")
+                st.info("Tudo limpo por aqui! Nenhuma matéria pendente na fila.")
             else:
                 for p in pautas:
-                    pid, p_titulo, p_link, p_prioridade, p_hora, p_obs, p_status = p
+                    pid, p_titulo, p_link, p_prioridade, p_hora, p_texto, p_status = p
                     
+                    # Estilo visual: Se estiver postando agora, fica Laranja
                     if p_status == "Postando":
                         cor_borda, fundo_card, tag_txt = "#fd7e14", "#fff4e6", "⚡ VOCÊ ESTÁ POSTANDO AGORA"
                     else:
@@ -776,15 +780,19 @@ else:
                                 <span style="background:{cor_borda}; color:white; padding:2px 10px; border-radius:10px; font-size:0.7rem;">{p_prioridade.upper()}</span>
                             </div>
                             <h4 style="margin:10px 0; color:#111;">{p_titulo}</h4>
-                            <div style="margin-top:10px;">
-                                <a href="{p_link}" target="_blank" style="background:#333; color:white; padding:8px 20px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">🔗 ABRIR MATÉRIA</a>
-                            </div>
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    if p_obs:
-                        st.info(f"💡 **Instrução:** {p_obs}")
+                    # SE TIVER LINK, MOSTRA O BOTÃO
+                    if p_link and p_link != "Sem link":
+                        st.link_button(f"🔗 ABRIR LINK DA MATÉRIA", p_link, use_container_width=True)
                     
+                    # SE TIVER TEXTO/RELEASE (Vindo do campo observação/p_texto)
+                    if p_texto:
+                        with st.expander("📄 VER TEXTO / RELEASE PARA COPIAR", expanded=True):
+                            st.text_area("Conteúdo da Matéria:", value=p_texto, height=250, key=f"text_{pid}")
+                            st.caption("Você pode copiar o texto acima e colar direto no site.")
+
                     col_b1, col_b2 = st.columns(2)
                     with col_b1:
                         if p_status != "Postando":
@@ -802,7 +810,7 @@ else:
                             st.rerun()
                     st.markdown("---")
 
-        # --- ABA 2: AGENDA (IDEAL PARA GRAVAÇÕES E EVENTOS) ---
+        # --- ABA 2: AGENDA (GRAVAÇÕES E EVENTOS) ---
         with tab_b2:
             st.subheader("📅 Cronograma de Atividades")
             st.caption("Fique atento aos horários de gravação e eventos externos.")

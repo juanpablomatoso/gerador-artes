@@ -536,14 +536,18 @@ else:
 
         with tab2:
             st.markdown(
-                '<p class="descricao-aba">Envie as matérias que o Brayan deve postar.</p>',
+                '<p class="descricao-aba">Envie matérias, links ou releases para o Brayan postar.</p>',
                 unsafe_allow_html=True,
             )
-            with st.form("form_envio_colorido"):
-                f_titulo = st.text_input("Título da Matéria")
-                f_link = st.text_input("Link da Matéria")
-                f_obs = st.text_area("Instruções para o Brayan")
-                f_urgencia = st.select_slider("Nível de Prioridade", options=["Normal", "Programar", "URGENTE"])
+            with st.form("form_envio_colorido", clear_on_submit=True):
+                col_f1, col_f2 = st.columns([3, 1])
+                with col_f1:
+                    f_titulo = st.text_input("📌 Título da Matéria")
+                with col_f2:
+                    f_urgencia = st.selectbox("Prioridade", ["Normal", "Programar", "URGENTE"])
+                
+                f_link = st.text_input("🔗 Link da Matéria (se houver)")
+                f_obs = st.text_area("📄 Texto da Matéria / Release", height=200, placeholder="Cole aqui o conteúdo da notícia ou release...")
 
                 if st.form_submit_button("🚀 ENVIAR PARA O BRAYAN", use_container_width=True):
                     if f_titulo:
@@ -556,38 +560,50 @@ else:
                             (titulo, link_ref, status, data_envio, prioridade, observacao)
                             VALUES (?,?,'Pendente',?,?,?)
                             """,
-                            (f_titulo, f_link, hora_br, f_urgencia, f_obs),
+                            (f_titulo, f_link if f_link else "Sem link", hora_br, f_urgencia, f_obs),
                         )
                         conn.commit()
                         conn.close()
-                        st.success("Pauta enviada!")
+                        st.success(f"✅ Matéria enviada para o Brayan!")
                         st.rerun()
                     else:
                         st.warning("Informe ao menos o título.")
 
             st.markdown("---")
-            st.subheader("📋 Últimos Envios")
+            st.subheader("👀 Monitor de Status (Tempo Real)")
+            
             conn = get_conn()
             c = conn.cursor()
-            c.execute("SELECT id, titulo, prioridade, data_envio, status FROM pautas_trabalho ORDER BY id DESC LIMIT 6")
-            p_hist = c.fetchall()
+            # Buscamos o que ainda não foi concluído para você monitorar
+            c.execute("SELECT id, titulo, prioridade, data_envio, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC LIMIT 10")
+            monitor = c.fetchall()
             conn.close()
 
-            cols_hist = st.columns(3)
-            for i, p in enumerate(p_hist):
-                with cols_hist[i % 3]:
-                    classe_cor = "card-urgente" if p[2] == "URGENTE" else "card-programar" if p[2] == "Programar" else ""
-                    st.markdown(
-                        f"<div class='card-pauta {classe_cor}'><small>{p[3]}</small><br><b>{p[1]}</b></div>",
-                        unsafe_allow_html=True,
-                    )
-                    if st.button("Remover", key=f"ex_{p[0]}"):
-                        conn = get_conn()
-                        c = conn.cursor()
-                        c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],))
-                        conn.commit()
-                        conn.close()
-                        st.rerun()
+            if not monitor:
+                st.info("Tudo em dia! Nenhuma postagem pendente.")
+            else:
+                for p in monitor:
+                    # Lógica de cores do status
+                    if p[4] == "Postando":
+                        status_cor = "#fd7e14" # Laranja
+                        status_txt = "⚡ POSTANDO AGORA"
+                    else:
+                        status_cor = "#004a99" # Azul
+                        status_txt = "⏳ NA FILA"
+                    
+                    col_m1, col_m2, col_m3 = st.columns([3, 1, 1])
+                    with col_m1:
+                        st.markdown(f"**{p[3]}** - {p[1]} <br><small>Prioridade: {p[2]}</small>", unsafe_allow_html=True)
+                    with col_m2:
+                        st.markdown(f"<p style='color:{status_cor}; font-weight:bold; margin-top:10px;'>{status_txt}</p>", unsafe_allow_html=True)
+                    with col_m3:
+                        if st.button("Remover", key=f"ex_{p[0]}", use_container_width=True):
+                            conn = get_conn()
+                            c = conn.cursor()
+                            c.execute("DELETE FROM pautas_trabalho WHERE id=?", (p[0],))
+                            conn.commit()
+                            conn.close()
+                            st.rerun()
 
         # ============================================================
         # 📅 ABA AGENDA - CENTRAL ESTRATÉGICA (LIMPEZA AUTOMÁTICA)
@@ -906,6 +922,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

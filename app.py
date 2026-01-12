@@ -795,7 +795,7 @@ else:
                         else:
                             st.button("🚧 Em andamento...", disabled=True, key=f"act_{pid}", use_container_width=True)
                     
-                    with col_btn2 := col_b2:
+                    with col_b2:
                         if st.button(f"✅ Finalizado", key=f"postado_{pid}", use_container_width=True, type="primary"):
                             c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
                             conn.commit()
@@ -847,20 +847,18 @@ else:
             for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
                 dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
                 
-                # Cores e Tags
                 if status == "Concluído": cor, tag, fundo = "#198754", "✅ CONCLUÍDO", "#f1fff6"
                 elif dt_obj < hoje_dt: cor, tag, fundo = "#dc3545", "🚨 ATRASADO", "#fff5f5"
                 elif dt_obj == hoje_dt: cor, tag, fundo = "#ffc107", "📌 HOJE", "#fffdf5"
                 else: cor, tag, fundo = "#0d6efd", "🗓️ AGENDADO", "#f3f7ff"
 
-                # Destaque especial se for gravação ou vídeo
                 em_campo = " 🎥" if "video" in titulo.lower() or "grava" in titulo.lower() or "evento" in titulo.lower() else ""
 
                 st.markdown(f"""
                     <div style="background:{fundo}; padding:15px; border-radius:10px; border-left:8px solid {cor}; margin-bottom:10px; border-top:1px solid #eee;">
                         <div style="display:flex; justify-content:space-between;">
                             <span style="font-weight:bold; font-size:0.8rem;">{dt_obj.strftime('%d/%m/%Y')} — {tag}</span>
-                            <span style="font-size:0.7rem; color:#666;">AUTOR: {criado_por.upper()}</span>
+                            <span style="font-size:0.7rem; color:#666;">AUTOR: {criado_por.upper() if criado_por else 'SISTEMA'}</span>
                         </div>
                         <div style="font-size:1.1rem; font-weight:bold; color:#111; margin-top:5px;">{titulo}{em_campo}</div>
                     </div>
@@ -900,6 +898,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

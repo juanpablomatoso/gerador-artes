@@ -736,7 +736,7 @@ else:
         hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
         hoje_str = hoje_dt.strftime("%Y-%m-%d")
         
-        # Conta matérias concluídas hoje para o contador
+        # Conta matérias concluídas hoje
         c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Concluído' AND data_envio LIKE ?", (f"{hoje_str}%",))
         total_hoje = c.fetchone()[0]
 
@@ -747,25 +747,23 @@ else:
             </div>
         """, unsafe_allow_html=True)
         
-        tab_b1, tab_b2 = st.tabs(["📝 MATÉRIAS PARA POSTAR", "📅 AGENDA"])
+        tab_b1, tab_b2 = st.tabs(["📝 MATÉRIAS PARA POSTAR", "📅 AGENDA & GRAVAÇÕES"])
 
         # --- ABA 1: MATÉRIAS PARA POSTAR (FILA DE TRABALHO) ---
         with tab_b1:
-            st.markdown('<p class="descricao-aba">Abaixo estão as matérias enviadas pelo Juan. Use o botão "Postar" para avisar que começou.</p>', unsafe_allow_html=True)
+            st.markdown('<p class="descricao-aba">Fila de postagem oficial do portal.</p>', unsafe_allow_html=True)
             
-            # Busca matérias que não estão concluídas
             c.execute("SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC")
             pautas = c.fetchall()
 
             if not pautas:
-                st.info("Tudo limpo! Nenhuma matéria pendente na fila.")
+                st.info("Tudo limpo por aqui! Nenhuma matéria pendente.")
             else:
                 for p in pautas:
                     pid, p_titulo, p_link, p_prioridade, p_hora, p_obs, p_status = p
                     
-                    # Estilo visual: Se estiver postando agora, fica Laranja
                     if p_status == "Postando":
-                        cor_borda, fundo_card, tag_txt = "#fd7e14", "#fff4e6", "⚡ POSTANDO AGORA"
+                        cor_borda, fundo_card, tag_txt = "#fd7e14", "#fff4e6", "⚡ VOCÊ ESTÁ POSTANDO AGORA"
                     else:
                         cor_borda = "#dc3545" if p_prioridade == "URGENTE" else "#004a99"
                         fundo_card = "#fff5f5" if p_prioridade == "URGENTE" else "white"
@@ -797,38 +795,35 @@ else:
                         else:
                             st.button("🚧 Em andamento...", disabled=True, key=f"act_{pid}", use_container_width=True)
                     
-                    with col_b2:
-                        if st.button(f"✅ Marcar como Postado", key=f"postado_{pid}", use_container_width=True, type="primary"):
+                    with col_btn2 := col_b2:
+                        if st.button(f"✅ Finalizado", key=f"postado_{pid}", use_container_width=True, type="primary"):
                             c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
                             conn.commit()
-                            st.toast("Matéria concluída e contabilizada!")
                             st.rerun()
                     st.markdown("---")
 
-        # --- ABA 2: AGENDA (COM AS TRAVAS DE SEGURANÇA) ---
+        # --- ABA 2: AGENDA (IDEAL PARA GRAVAÇÕES E EVENTOS) ---
         with tab_b2:
-            st.subheader("📅 Cronograma Editorial (Brayan)")
+            st.subheader("📅 Cronograma de Atividades")
+            st.caption("Fique atento aos horários de gravação e eventos externos.")
             
-            # Limpeza automática de concluídos antigos
             c.execute("DELETE FROM agenda_itens WHERE status = 'Concluído' AND data_ref < ?", (hoje_str,))
             conn.commit()
 
-            # Filtro de Período
-            opcao_br = st.selectbox("Período de visualização:", ["Próximos 7 dias", "Próximos 15 dias", "Tudo"], key="filter_br")
+            opcao_br = st.selectbox("Ver agenda de:", ["Próximos 7 dias", "Próximos 15 dias", "Tudo"], key="filter_br")
             dias = 7 if "7" in opcao_br else (15 if "15" in opcao_br else 365)
             data_limite = (hoje_dt + timedelta(days=dias)).strftime("%Y-%m-%d")
 
-            # Cadastro de pautas pelo Brayan
             with st.form("form_agenda_brayan", clear_on_submit=True):
-                st.markdown("##### ✍️ Sugerir/Agendar Novo Item")
+                st.markdown("##### ✍️ Agendar Nova Atividade/Lembrete")
                 col1, col2 = st.columns([2, 1])
                 with col1:
-                    b_titulo = st.text_input("Título da Atividade")
-                    b_desc = st.text_area("Notas extras (opcional)", height=68)
+                    b_titulo = st.text_input("O que precisa ser feito?")
+                    b_desc = st.text_area("Detalhes (Local, horário, etc)", height=68)
                 with col2:
-                    b_data = st.date_input("Data da Atividade", value=hoje_dt, format="DD/MM/YYYY")
+                    b_data = st.date_input("Data", value=hoje_dt, format="DD/MM/YYYY")
                 
-                if st.form_submit_button("🚀 AGENDAR NO PORTAL", use_container_width=True, type="primary"):
+                if st.form_submit_button("🚀 AGENDAR NO PAINEL", use_container_width=True, type="primary"):
                     if b_titulo:
                         agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
                         c.execute(
@@ -836,12 +831,10 @@ else:
                             (b_data.strftime("%Y-%m-%d"), b_titulo, b_desc, "Pendente", "brayan", agora)
                         )
                         conn.commit()
-                        st.toast("Agendado!")
                         st.rerun()
 
             st.markdown("---")
 
-            # Listagem da Agenda
             c.execute(
                 """SELECT id, data_ref, titulo, descricao, status, criado_por 
                    FROM agenda_itens 
@@ -853,20 +846,29 @@ else:
 
             for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
                 dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
+                
+                # Cores e Tags
                 if status == "Concluído": cor, tag, fundo = "#198754", "✅ CONCLUÍDO", "#f1fff6"
                 elif dt_obj < hoje_dt: cor, tag, fundo = "#dc3545", "🚨 ATRASADO", "#fff5f5"
                 elif dt_obj == hoje_dt: cor, tag, fundo = "#ffc107", "📌 HOJE", "#fffdf5"
                 else: cor, tag, fundo = "#0d6efd", "🗓️ AGENDADO", "#f3f7ff"
 
+                # Destaque especial se for gravação ou vídeo
+                em_campo = " 🎥" if "video" in titulo.lower() or "grava" in titulo.lower() or "evento" in titulo.lower() else ""
+
                 st.markdown(f"""
                     <div style="background:{fundo}; padding:15px; border-radius:10px; border-left:8px solid {cor}; margin-bottom:10px; border-top:1px solid #eee;">
                         <div style="display:flex; justify-content:space-between;">
                             <span style="font-weight:bold; font-size:0.8rem;">{dt_obj.strftime('%d/%m/%Y')} — {tag}</span>
-                            <span style="font-size:0.7rem; color:#666;">AUTOR: {criado_por.upper() if criado_por else "SISTEMA"}</span>
+                            <span style="font-size:0.7rem; color:#666;">AUTOR: {criado_por.upper()}</span>
                         </div>
-                        <div style="font-size:1.1rem; font-weight:bold; color:#111; margin-top:5px;">{titulo}</div>
+                        <div style="font-size:1.1rem; font-weight:bold; color:#111; margin-top:5px;">{titulo}{em_campo}</div>
                     </div>
                 """, unsafe_allow_html=True)
+
+                if descricao:
+                    with st.expander("📖 Ver detalhes/instruções"):
+                        st.write(descricao)
 
                 col_ag1, col_ag2, _ = st.columns([1, 1, 3])
                 with col_ag1:
@@ -888,7 +890,7 @@ else:
         conn.close()
 
         if st.button("🆘 Precisa de ajuda?"):
-            st.warning("Brayan, caso o sistema apresente erro ou dúvida em uma pauta, entre em contato com o Juan.")
+            st.warning("Brayan, entre em contato com o Juan caso precise de ajuda.")
 
     # ============================================================
     # SIDEBAR
@@ -898,6 +900,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

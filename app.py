@@ -727,113 +727,149 @@ else:
 
     else:
         # ============================================================
-        # 📅 ABA AGENDA - VISÃO DO COLABORADOR (BRAYAN) - COM TRAVAS
+        # PAINEL BRAYAN - (FILA DE TRABALHO + AGENDA)
         # ============================================================
-        st.markdown("---")
-        st.subheader("📅 Cronograma Editorial (Brayan)")
+        st.markdown('<div class="boas-vindas">Olá, Brayan! Bom trabalho.</div>', unsafe_allow_html=True)
         
-        conn = get_conn()
-        c = conn.cursor()
-        
-        # Ajuste de fuso horário (Toledo-PR)
-        hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
-        hoje_str = hoje_dt.strftime("%Y-%m-%d")
+        # Criando as abas para o Brayan: Matérias enviadas e Agenda
+        tab_b1, tab_b2 = st.tabs(["📝 MATÉRIAS PARA POSTAR", "📅 AGENDA"])
 
-        # --- 1) ROTINA DE LIMPEZA AUTOMÁTICA (Limpa concluídos do passado) ---
-        c.execute("DELETE FROM agenda_itens WHERE status = 'Concluído' AND data_ref < ?", (hoje_str,))
-        conn.commit()
+        # --- ABA 1: MATÉRIAS PARA POSTAR ---
+        with tab_b1:
+            st.markdown('<p class="descricao-aba">Abaixo estão as matérias enviadas pelo Juan para postagem.</p>', unsafe_allow_html=True)
+            
+            conn = get_conn()
+            c = conn.cursor()
+            # Busca as pautas que ainda não foram concluídas
+            c.execute("SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC")
+            pautas = c.fetchall()
+            conn.close()
 
-        # --- 2) FILTRO DE VISUALIZAÇÃO ---
-        col_f1, col_f2 = st.columns([1, 1])
-        with col_f1:
+            if not pautas:
+                st.info("Nenhuma matéria pendente na fila no momento.")
+            else:
+                for p in pautas:
+                    pid, p_titulo, p_link, p_prioridade, p_hora, p_obs, p_status = p
+                    
+                    # Estilo baseado na prioridade
+                    cor_borda = "#dc3545" if p_prioridade == "URGENTE" else "#004a99"
+                    fundo_card = "#fff5f5" if p_prioridade == "URGENTE" else "white"
+                    
+                    st.markdown(f"""
+                        <div style="background:{fundo_card}; padding:20px; border-radius:12px; border-left:6px solid {cor_borda}; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:15px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span style="font-size:0.8rem; font-weight:bold; color:#666;">🕒 ENVIADO ÀS: {p_hora}</span>
+                                <span style="background:{cor_borda}; color:white; padding:2px 10px; border-radius:10px; font-size:0.7rem;">{p_prioridade.upper()}</span>
+                            </div>
+                            <h4 style="margin:10px 0; color:#111;">{p_titulo}</h4>
+                            <div style="margin-top:10px;">
+                                <a href="{p_link}" target="_blank" style="background:#004a99; color:white; padding:8px 20px; border-radius:6px; text-decoration:none; font-weight:bold; display:inline-block;">🔗 ABRIR MATÉRIA</a>
+                            </div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    
+                    if p_obs:
+                        st.info(f"💡 **Instrução:** {p_obs}")
+                    
+                    if st.button(f"✅ Marcar como Postado", key=f"postado_{pid}", use_container_width=True):
+                        conn = get_conn()
+                        c = conn.cursor()
+                        c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
+                        conn.commit()
+                        conn.close()
+                        st.toast("Matéria concluída!")
+                        st.rerun()
+                    st.markdown("---")
+
+        # --- ABA 2: AGENDA (COM AS TRAVAS QUE VOCÊ PEDIU) ---
+        with tab_b2:
+            st.subheader("📅 Cronograma Editorial (Brayan)")
+            
+            conn = get_conn()
+            c = conn.cursor()
+            
+            # Ajuste de fuso horário
+            hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
+            hoje_str = hoje_dt.strftime("%Y-%m-%d")
+
+            # Limpeza automática de concluídos antigos
+            c.execute("DELETE FROM agenda_itens WHERE status = 'Concluído' AND data_ref < ?", (hoje_str,))
+            conn.commit()
+
+            # Filtro de Período
             opcao_br = st.selectbox("Período de visualização:", ["Próximos 7 dias", "Próximos 15 dias", "Tudo"], key="filter_br")
-        
-        dias = 7 if "7" in opcao_br else (15 if "15" in opcao_br else 365)
-        data_limite = (hoje_dt + timedelta(days=dias)).strftime("%Y-%m-%d")
+            dias = 7 if "7" in opcao_br else (15 if "15" in opcao_br else 365)
+            data_limite = (hoje_dt + timedelta(days=dias)).strftime("%Y-%m-%d")
 
-        # --- 3) FORMULÁRIO DE CADASTRO (BRAYAN PODE CRIAR) ---
-        with st.form("form_agenda_brayan", clear_on_submit=True):
-            st.markdown("##### ✍️ Sugerir/Agendar Novo Item")
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                b_titulo = st.text_input("Título da Atividade")
-                b_desc = st.text_area("Notas extras (opcional)", height=68)
-            with col2:
-                b_data = st.date_input("Data da Atividade", value=hoje_dt, format="DD/MM/YYYY")
-            
-            if st.form_submit_button("🚀 AGENDAR NO PORTAL", use_container_width=True, type="primary"):
-                if b_titulo:
-                    agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-                    c.execute(
-                        "INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
-                        (b_data.strftime("%Y-%m-%d"), b_titulo, b_desc, "Pendente", "brayan", agora)
-                    )
-                    conn.commit()
-                    st.toast("Agendado com sucesso!")
-                    st.rerun()
+            # Cadastro de pautas pelo Brayan
+            with st.form("form_agenda_brayan", clear_on_submit=True):
+                st.markdown("##### ✍️ Sugerir/Agendar Novo Item")
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    b_titulo = st.text_input("Título da Atividade")
+                    b_desc = st.text_area("Notas extras (opcional)", height=68)
+                with col2:
+                    b_data = st.date_input("Data da Atividade", value=hoje_dt, format="DD/MM/YYYY")
+                
+                if st.form_submit_button("🚀 AGENDAR NO PORTAL", use_container_width=True, type="primary"):
+                    if b_titulo:
+                        agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
+                        c.execute(
+                            "INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
+                            (b_data.strftime("%Y-%m-%d"), b_titulo, b_desc, "Pendente", "brayan", agora)
+                        )
+                        conn.commit()
+                        st.toast("Agendado!")
+                        st.rerun()
 
-        st.markdown("---")
+            st.markdown("---")
 
-        # --- 4) LISTAGEM COM TRAVAS DE SEGURANÇA ---
-        c.execute(
-            """SELECT id, data_ref, titulo, descricao, status, criado_por 
-               FROM agenda_itens 
-               WHERE (data_ref BETWEEN ? AND ?) OR (status = 'Pendente' AND data_ref < ?)
-               ORDER BY data_ref ASC""",
-            (hoje_str, data_limite, hoje_str)
-        )
-        itens = c.fetchall()
+            # Listagem com travas
+            c.execute(
+                """SELECT id, data_ref, titulo, descricao, status, criado_por 
+                   FROM agenda_itens 
+                   WHERE (data_ref BETWEEN ? AND ?) OR (status = 'Pendente' AND data_ref < ?)
+                   ORDER BY data_ref ASC""",
+                (hoje_str, data_limite, hoje_str)
+            )
+            itens = c.fetchall()
 
-        if not itens:
-            st.info("Nenhuma pauta agendada para este período.")
+            for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
+                dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
+                
+                if status == "Concluído": cor, tag, fundo = "#198754", "✅ CONCLUÍDO", "#f1fff6"
+                elif dt_obj < hoje_dt: cor, tag, fundo = "#dc3545", "🚨 ATRASADO", "#fff5f5"
+                elif dt_obj == hoje_dt: cor, tag, fundo = "#ffc107", "📌 HOJE", "#fffdf5"
+                else: cor, tag, fundo = "#0d6efd", "🗓️ AGENDADO", "#f3f7ff"
 
-        for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
-            dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
-            data_br = dt_obj.strftime("%d/%m/%Y")
-            
-            # Cores baseadas no status/data
-            if status == "Concluído": cor, tag, fundo = "#198754", "✅ CONCLUÍDO", "#f1fff6"
-            elif dt_obj < hoje_dt: cor, tag, fundo = "#dc3545", "🚨 ATRASADO", "#fff5f5"
-            elif dt_obj == hoje_dt: cor, tag, fundo = "#ffc107", "📌 HOJE", "#fffdf5"
-            else: cor, tag, fundo = "#0d6efd", "🗓️ AGENDADO", "#f3f7ff"
-
-            st.markdown(f"""
-                <div style="background:{fundo}; padding:15px; border-radius:10px; border-left:8px solid {cor}; margin-bottom:10px; border-top:1px solid #eee; border-right:1px solid #eee;">
-                    <div style="display:flex; justify-content:space-between;">
-                        <span style="font-weight:bold; font-size:0.8rem; color:#333;">{data_br} — {tag}</span>
-                        <span style="font-size:0.7rem; color:#666;">AUTOR: {criado_por.upper() if criado_por else "SISTEMA"}</span>
+                st.markdown(f"""
+                    <div style="background:{fundo}; padding:15px; border-radius:10px; border-left:8px solid {cor}; margin-bottom:10px; border-top:1px solid #eee;">
+                        <div style="display:flex; justify-content:space-between;">
+                            <span style="font-weight:bold; font-size:0.8rem;">{dt_obj.strftime('%d/%m/%Y')} — {tag}</span>
+                            <span style="font-size:0.7rem; color:#666;">AUTOR: {criado_por.upper() if criado_por else "SISTEMA"}</span>
+                        </div>
+                        <div style="font-size:1.1rem; font-weight:bold; color:#111; margin-top:5px;">{titulo}</div>
                     </div>
-                    <div style="font-size:1.15rem; font-weight:bold; color:#111; margin-top:5px;">{titulo}</div>
-                </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
 
-            if descricao:
-                with st.expander("🔍 Ver detalhes"):
-                    st.write(descricao)
-
-            col_b1, col_b2, _ = st.columns([1, 1, 3])
-            
-            with col_b1:
-                # Brayan pode marcar como concluído qualquer tarefa (trabalho operacional)
-                label = "↩️ Reabrir" if status == "Concluído" else "✔️ Concluir"
-                if st.button(label, key=f"br_concluir_{tid}", use_container_width=True):
-                    novo = "Pendente" if status == "Concluído" else "Concluído"
-                    c.execute("UPDATE agenda_itens SET status=? WHERE id=?", (novo, tid))
-                    conn.commit()
-                    st.rerun()
-
-            with col_b2:
-                # 🔒 TRAVA DE SEGURANÇA: Só exclui se ele mesmo criou
-                if criado_por == "brayan":
-                    if st.button("🗑️ Excluir", key=f"br_del_{tid}", use_container_width=True):
-                        c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
+                col_b1, col_b2, _ = st.columns([1, 1, 3])
+                with col_b1:
+                    label = "↩️ Reabrir" if status == "Concluído" else "✔️ Concluir"
+                    if st.button(label, key=f"br_concluir_{tid}", use_container_width=True):
+                        novo = "Pendente" if status == "Concluído" else "Concluído"
+                        c.execute("UPDATE agenda_itens SET status=? WHERE id=?", (novo, tid))
                         conn.commit()
                         st.rerun()
-                else:
-                    # Se foi o Juan que criou, o botão de excluir fica bloqueado
-                    st.button("🔒 Fixo", help="Pauta estratégica. Apenas Juan pode excluir.", disabled=True, key=f"lock_{tid}", use_container_width=True)
-        
-        conn.close()
+                with col_b2:
+                    if criado_por == "brayan":
+                        if st.button("🗑️ Excluir", key=f"br_del_{tid}", use_container_width=True):
+                            c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
+                            conn.commit()
+                            st.rerun()
+                    else:
+                        st.button("🔒 Fixo", help="Apenas Juan pode excluir esta pauta.", disabled=True, key=f"lock_{tid}", use_container_width=True)
+            
+            conn.close()
 
         if st.button("🆘 Precisa de ajuda?"):
             st.warning("Brayan, caso o sistema apresente erro, entre em contato direto com o Juan.")
@@ -846,6 +882,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

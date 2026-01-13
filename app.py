@@ -754,13 +754,10 @@ else:
         hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
         hoje_str = hoje_dt.strftime("%Y-%m-%d")
 
-        # CSS Avançado: Efeito Glassmorphism e Cards Modernos
+        # CSS Avançado Original
         st.markdown("""
             <style>
-                /* Background geral mais suave */
                 .stApp { background-color: #f4f7fb; }
-                
-                /* Cards de KPI (Números do topo) */
                 .kpi-card {
                     background: white;
                     padding: 25px;
@@ -772,7 +769,6 @@ else:
                 .kpi-num { font-size: 2.2rem; font-weight: 800; color: #004a99; margin-bottom: 5px; }
                 .kpi-lab { font-size: 0.85rem; color: #8898aa; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
 
-                /* Cards de Trabalho (Grid) */
                 .glass-card {
                     background: white;
                     border-radius: 20px;
@@ -797,26 +793,22 @@ else:
             st.markdown(f"<h1 style='margin-bottom:0;'>Controle de Operações</h1>", unsafe_allow_html=True)
             st.markdown(f"<p style='color:#666; font-size:1.1rem;'>Bem-vindo, <b>Brayan</b>. Status do sistema: <span style='color:green;'>● Online</span></p>", unsafe_allow_html=True)
         
-        # CÁLCULO DE DADOS PARA OS INDICADORES
+        # CÁLCULO DE DADOS
         c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status != 'Concluído'")
         pautas_ativas = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan'")
         agenda_trabalho = c.fetchone()[0]
-        c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Concluído' AND data_envio LIKE ?", (f"{hoje_str}%",))
-        concluidas_hoje = c.fetchone()[0]
 
-        # LINHA DE INDICADORES (KPIs)
-        k1, k2, k3 = st.columns(3)
+        # LINHA DE INDICADORES (ALTERADO PARA 2 COLUNAS APENAS)
+        k1, k2 = st.columns(2)
         with k1:
             st.markdown(f'<div class="kpi-card"><div class="kpi-num">{pautas_ativas}</div><div class="kpi-lab">Fila de Postagem</div></div>', unsafe_allow_html=True)
         with k2:
             st.markdown(f'<div class="kpi-card"><div class="kpi-num">{agenda_trabalho}</div><div class="kpi-lab">Tarefas Agenda</div></div>', unsafe_allow_html=True)
-        with k3:
-            st.markdown(f'<div class="kpi-card"><div class="kpi-num">{concluidas_hoje}</div><div class="kpi-lab">Feitas Hoje</div></div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # NAVEGAÇÃO POR TABS ESTILO MODERNO
+        # NAVEGAÇÃO POR TABS
         t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
         # --- ABA 1: TRABALHO ---
@@ -827,14 +819,9 @@ else:
                 ORDER BY CASE WHEN prioridade = 'URGENTE' THEN 1 WHEN prioridade = 'Normal' THEN 2 ELSE 3 END ASC, id DESC
             """)
             items = c.fetchall()
-
-            if not items:
-                st.info("✨ Sistema limpo. Sem pautas pendentes.")
-            
             for id_p, tit, link, prio, hora, obs, stat in items:
                 cor_p = "#ff4b4b" if prio == "URGENTE" else ("#ffa500" if prio == "Programar" else "#007bff")
                 bg_p = "rgba(255, 75, 75, 0.1)" if prio == "URGENTE" else "rgba(0, 123, 255, 0.1)"
-                
                 st.markdown(f"""
                     <div class="glass-card">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -844,113 +831,86 @@ else:
                         <h4 style="margin: 15px 0 10px 0; color:#111; font-size:1.25rem;">{tit}</h4>
                     </div>
                 """, unsafe_allow_html=True)
-
                 c1, c2, c3 = st.columns([1, 1, 2])
                 with c1:
                     if st.button("🚀 INICIAR", key=f"go_{id_p}", use_container_width=True, type="primary"):
                         c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (id_p,))
-                        conn.commit()
-                        if link and "http" in link: st.components.v1.html(f"<script>window.open('{link}')</script>", height=0)
-                        st.rerun()
+                        conn.commit(); st.rerun()
                 with c2:
                     if st.button("✅ FEITO", key=f"ok_{id_p}", use_container_width=True):
                         c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (id_p,))
                         conn.commit(); st.rerun()
                 with c3:
                     if obs:
-                        with st.expander("📄 Ver Conteúdo/Release"):
-                            st.write(obs)
-                st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
+                        with st.expander("📄 Ver Conteúdo"): st.write(obs)
 
         # --- ABA 2: CRONOGRAMA (TRABALHO) ---
         with t_agenda:
             st.markdown("### 📅 Cronograma de Trabalho")
             c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan' ORDER BY data_ref ASC")
             itens_work = c.fetchall()
-            
-            if not itens_work:
-                st.write("✨ Nenhuma atividade pendente.")
-            else:
-                # Criar fileiras de 3 quadradinhos cada
-                cols = st.columns(3)
-                for idx, (tid, data, t, d) in enumerate(itens_work):
-                    dt = datetime.strptime(data, "%Y-%m-%d").date()
-                    with cols[idx % 3]: # Distribui entre as 3 colunas
-                        st.markdown(f"""
-                            <div style="background:white; padding:15px; border-radius:15px; border-top:5px solid #004a99; box-shadow:0 4px 10px rgba(0,0,0,0.05); min-height:120px; margin-bottom:10px;">
-                                <b style="color:#004a99; font-size:0.8rem;">{dt.strftime('%d/%m/%Y')}</b><br>
-                                <div style="font-weight:bold; font-size:1rem; margin-top:5px; color:#222;">{t}</div>
-                                <div style="font-size:0.8rem; color:#666; margin-top:3px;">{d[:50] + '...' if d and len(d)>50 else (d if d else '')}</div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                        if st.button("Concluir", key=f"at_{tid}", use_container_width=True):
-                            c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
-                            conn.commit(); st.rerun()
+            cols = st.columns(3)
+            for idx, (tid, data, t, d) in enumerate(itens_work):
+                dt = datetime.strptime(data, "%Y-%m-%d").date()
+                with cols[idx % 3]:
+                    st.markdown(f"""
+                        <div style="background:white; padding:15px; border-radius:15px; border-top:5px solid #004a99; box-shadow:0 4px 10px rgba(0,0,0,0.05); min-height:120px; margin-bottom:10px;">
+                            <b style="color:#004a99; font-size:0.8rem;">{dt.strftime('%d/%m/%Y')}</b><br>
+                            <div style="font-weight:bold; font-size:1rem; margin-top:5px; color:#222;">{t}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("Concluir", key=f"at_{tid}", use_container_width=True):
+                        c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
+                        conn.commit(); st.rerun()
+                    with st.expander("📝 Editar"):
+                        with st.form(f"edit_w_{tid}"):
+                            new_t = st.text_input("Título", value=t)
+                            new_d = st.date_input("Data", value=dt)
+                            if st.form_submit_button("Salvar"):
+                                c.execute("UPDATE agenda_itens SET titulo=?, data_ref=? WHERE id=?", (new_t, new_d.strftime("%Y-%m-%d"), tid))
+                                conn.commit(); st.rerun()
 
-        # --- ABA 3: VIDA PESSOAL (GRID MODERNO) ---
+        # --- ABA 3: VIDA PESSOAL ---
         with t_pessoal:
             st.markdown("### 🏠 Agenda Pessoal")
-            
-            # Busca os itens pessoais pendentes
-            c.execute("""
-                SELECT id, data_ref, titulo, descricao 
-                FROM agenda_itens 
-                WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' 
-                ORDER BY data_ref ASC
-            """)
+            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
             itens_pess = c.fetchall()
+            cols_p = st.columns(4)
+            for idx, (tid, data, t, d) in enumerate(itens_pess):
+                dt_p = datetime.strptime(data, "%Y-%m-%d").date()
+                with cols_p[idx % 4]:
+                    st.markdown(f"""
+                        <div style="background:#f9f5ff; padding:12px; border-radius:15px; border:1px solid #e0d5f5; border-top:5px solid #6f42c1; text-align:center; min-height:110px; margin-bottom:10px;">
+                            <span style="color:#6f42c1; font-weight:bold; font-size:0.75rem;">🏠 {dt_p.strftime('%d/%m')}</span>
+                            <div style="font-weight:700; font-size:0.9rem; color:#333; margin-top:5px;">{t}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                    if st.button("OK", key=f"ps_ok_{tid}", use_container_width=True):
+                        c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
+                        conn.commit(); st.rerun()
+                    with st.expander("📝"):
+                        with st.form(f"edit_p_{tid}"):
+                            new_t = st.text_input("Título", value=t)
+                            new_d = st.date_input("Data", value=dt_p)
+                            if st.form_submit_button("Salvar"):
+                                c.execute("UPDATE agenda_itens SET titulo=?, data_ref=? WHERE id=?", (new_t, new_d.strftime("%Y-%m-%d"), tid))
+                                conn.commit(); st.rerun()
 
-            if not itens_pess:
-                st.info("✨ Tudo organizado na vida pessoal por enquanto.")
-            else:
-                # Criamos um grid de 4 colunas para itens pessoais (mais compactos)
-                cols_p = st.columns(4)
-                
-                for idx, (tid, data, t, d) in enumerate(itens_pess):
-                    dt_p = datetime.strptime(data, "%Y-%m-%d").date()
-                    
-                    # O "idx % 4" distribui os cards entre as 4 colunas automaticamente
-                    with cols_p[idx % 4]:
-                        st.markdown(f"""
-                            <div style="
-                                background: #f9f5ff; 
-                                padding: 12px; 
-                                border-radius: 15px; 
-                                border: 1px solid #e0d5f5; 
-                                border-top: 5px solid #6f42c1;
-                                text-align: center; 
-                                min-height: 110px; 
-                                margin-bottom: 10px;
-                                box-shadow: 0 4px 6px rgba(111, 66, 193, 0.05);
-                            ">
-                                <span style="color:#6f42c1; font-weight:bold; font-size:0.75rem;">🏠 {dt_p.strftime('%d/%m')}</span>
-                                <div style="font-weight:700; font-size:0.9rem; color:#333; margin-top:5px; line-height:1.2;">{t}</div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                        
-                        # Botão de check logo abaixo do quadradinho
-                        if st.button("OK", key=f"ps_ok_{tid}", use_container_width=True):
-                            c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
-                            conn.commit()
-                            st.rerun()
-
-        # --- ABA 4: NOVO (CADASTRO) ---
+        # --- ABA 4: NOVO (Original) ---
         with t_add:
-            st.markdown("### ➕ Nova Entrada no Dashboard")
+            st.markdown("### ➕ Nova Entrada")
             tipo = st.segmented_control("Onde cadastrar?", ["Trabalho", "Vida Pessoal"], default="Trabalho")
-            
             with st.form("form_novo_dash", clear_on_submit=True):
                 v_tit = st.text_input("Título / O que fazer?")
                 v_des = st.text_area("Notas extras (opcional)")
                 v_dat = st.date_input("Data", value=hoje_dt, format="DD/MM/YYYY")
-                
                 if st.form_submit_button("🚀 SALVAR NO SISTEMA", use_container_width=True):
                     if v_tit:
                         autor = "brayan" if tipo == "Trabalho" else "brayan_pessoal"
                         agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
                         c.execute("INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
                                  (v_dat.strftime("%Y-%m-%d"), v_tit, v_des, "Pendente", autor, agora))
-                        conn.commit(); st.success("Registrado com sucesso!"); st.rerun()
+                        conn.commit(); st.success("Registrado!"); st.rerun()
 
         conn.close()
 
@@ -962,6 +922,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

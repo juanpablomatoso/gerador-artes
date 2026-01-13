@@ -475,8 +475,14 @@ if not st.session_state.autenticado:
 
 else:
     # ============================================================
-    # 10) INTERFACE INTERNA
+    # 10) INTERFACE INTERNA (DENTRO DO IF JUAN)
     # ============================================================
+    # Importação necessária para o refresh automático (Adicione no topo se puder, ou deixamos aqui)
+    from streamlit_autorefresh import st_autorefresh
+    
+    # Atualiza a página automaticamente a cada 60 segundos
+    st_autorefresh(interval=60000, key="datarefresh")
+
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
     if st.session_state.perfil == "juan":
@@ -491,7 +497,15 @@ else:
             c1, col_preview = st.columns([1, 2])
 
             with c1:
-                st.subheader("📰 Notícias Recentes")
+                # --- CABEÇALHO COM BOTÃO DE ATUALIZAÇÃO ---
+                col_t1, col_t2 = st.columns([2, 1])
+                with col_t1:
+                    st.subheader("📰 Notícias Recentes")
+                with col_t2:
+                    if st.button("🔄 Atualizar", key="refresh_news", use_container_width=True):
+                        st.cache_data.clear() # Limpa o cache para buscar novas matérias no site
+                        st.rerun()
+
                 ultimas = buscar_ultimas()
                 if not ultimas:
                     st.info("Não foi possível carregar as notícias agora.")
@@ -573,11 +587,17 @@ else:
                         st.warning("Informe ao menos o título.")
 
             st.markdown("---")
-            st.subheader("👀 Monitor de Status (Tempo Real)")
+            
+            # --- MONITOR COM BOTÃO DE REFRESH MANUAL ---
+            col_m_tit, col_m_ref = st.columns([3, 1])
+            with col_m_tit:
+                st.subheader("👀 Monitor de Status (Tempo Real)")
+            with col_m_ref:
+                if st.button("🔄 Atualizar Fila", key="ref_fila", use_container_width=True):
+                    st.rerun()
             
             conn = get_conn()
             c = conn.cursor()
-            # Buscamos o que ainda não foi concluído para você monitorar
             c.execute("SELECT id, titulo, prioridade, data_envio, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC LIMIT 10")
             monitor = c.fetchall()
             conn.close()
@@ -586,7 +606,6 @@ else:
                 st.info("Tudo em dia! Nenhuma postagem pendente.")
             else:
                 for p in monitor:
-                    # Lógica de cores do status
                     if p[4] == "Postando":
                         status_cor = "#fd7e14" # Laranja
                         status_txt = "⚡ POSTANDO AGORA"
@@ -964,6 +983,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

@@ -762,7 +762,7 @@ else:
         st.markdown("<br>", unsafe_allow_html=True)
         t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
-        # --- ABA 1: TRABALHO (CORREÇÃO DE ABERTURA DE LINK) ---
+        # --- ABA 1: TRABALHO (CORREÇÃO DE CLIQUE ÚNICO) ---
         with t_work:
             c.execute("""
                 SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status 
@@ -787,26 +787,23 @@ else:
                 
                 c1, c2, c3 = st.columns([1, 1, 2])
                 with c1:
-                    # Melhoria no botão de Iniciar
-                    if st.button("🚀 INICIAR", key=f"go_{id_p}", use_container_width=True, type="primary"):
-                        c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (id_p,))
-                        conn.commit()
-                        
+                    # Usamos uma chave única e removemos o excesso de lógica que trava o clique
+                    if st.button("🚀 INICIAR", key=f"btn_go_{id_p}", use_container_width=True, type="primary"):
                         if link and "http" in link:
-                            # Script de abertura mais robusto
+                            # O segredo: Abrir o link e DEPOIS atualizar o banco
                             st.components.v1.html(f"""
                                 <script>
-                                    var win = window.open('{link}', '_blank');
-                                    if(!win || win.closed || typeof win.closed=='undefined') {{ 
-                                        alert('O navegador bloqueou o link! Por favor, autorize pop-ups para este site.');
-                                    }}
+                                    window.open('{link}', '_blank');
                                 </script>
                             """, height=0)
-                            st.success(f"Abrindo: {tit}")
+                            
+                            # Atualiza status silenciosamente
+                            c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (id_p,))
+                            conn.commit()
+                            # Aguarda um milissegundo antes do rerun para o JS processar a janela
+                            st.rerun()
                         else:
-                            st.warning("Link não encontrado ou inválido.")
-                        
-                        st.rerun()
+                            st.error("Link inválido")
                         
                 with c2:
                     if st.button("✅ FEITO", key=f"ok_{id_p}", use_container_width=True):
@@ -967,6 +964,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

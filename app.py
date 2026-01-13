@@ -746,7 +746,7 @@ else:
 
     else:
         # ============================================================
-        # PAINEL BRAYAN - GESTÃO ORGANIZADA POR PRIORIDADE
+        # PAINEL BRAYAN - TRABALHO + VIDA PESSOAL
         # ============================================================
         
         conn = get_conn()
@@ -754,18 +754,18 @@ else:
         hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
         hoje_str = hoje_dt.strftime("%Y-%m-%d")
         
-        # Saudação simples (conforme solicitado anteriormente)
+        # Saudação
         st.markdown(f"""
             <div style="background: linear-gradient(90deg, #004a99 0%, #007bff 100%); padding: 15px; border-radius: 15px; color: white; text-align: center; margin-bottom: 20px;">
                 <h2 style="margin:0; font-size:1.5rem;">👋 Olá, Brayan! Bom trabalho.</h2>
             </div>
         """, unsafe_allow_html=True)
         
-        tab_b1, tab_b2 = st.tabs(["📝 FILA DE POSTAGEM", "📅 AGENDA & GRAVAÇÕES"])
+        # Criação das 3 abas
+        tab_b1, tab_b2, tab_b3 = st.tabs(["📝 FILA DE POSTAGEM", "📅 AGENDA & GRAVAÇÕES", "🏠 VIDA PESSOAL"])
 
-        # --- ABA 1: MATÉRIAS PARA POSTAR ---
+        # --- ABA 1: FILA DE TRABALHO ---
         with tab_b1:
-            # BUSCA ORGANIZADA: 1º Urgente, 2º Normal, 3º Programar
             c.execute("""
                 SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status 
                 FROM pautas_trabalho 
@@ -779,104 +779,89 @@ else:
             """)
             pautas = c.fetchall()
             
-            # Lógica da frase de status do topo
             tem_urgente = any(p[3] == "URGENTE" for p in pautas)
-            total_pautas = len(pautas)
-
-            if total_pautas == 0:
+            if not pautas:
                 st.success("✅ **Tá tudo tranquilo!** Nenhuma matéria pendente.")
             elif tem_urgente:
-                st.error("🚨 **POSTAR AGORA!** Você tem matérias **URGENTES** no topo da fila.")
+                st.error("🚨 **POSTAR AGORA URGENTE!** Você tem matérias prioritárias.")
             else:
-                st.info("⚖️ **Tem trabalho normal.** Siga a ordem da fila abaixo.")
-
-            st.markdown("---")
+                st.info("⚖️ **Tem trabalho normal.** Siga a ordem da fila.")
 
             for p in pautas:
                 pid, p_titulo, p_link, p_prioridade, p_hora, p_texto, p_status = p
+                cor = "#dc3545" if p_prioridade == "URGENTE" else ("#ffc107" if p_prioridade == "Programar" else "#004a99")
+                fundo = "#fff5f5" if p_prioridade == "URGENTE" else "white"
                 
-                # Definição de cores e alertas visuais
-                if p_status == "Postando":
-                    cor_borda, fundo_card, tag_txt = "#fd7e14", "#fff4e6", "⚡ VOCÊ ESTÁ POSTANDO AGORA"
-                else:
-                    if p_prioridade == "URGENTE":
-                        cor_borda, fundo_card, tag_txt = "#dc3545", "#fff5f5", "🚨 URGENTE - POSTAR AGORA"
-                    elif p_prioridade == "Programar":
-                        cor_borda, fundo_card, tag_txt = "#ffc107", "#fffdf5", f"🕒 PROGRAMAR (Enviado: {p_hora})"
-                    else:
-                        cor_borda, fundo_card, tag_txt = "#004a99", "white", f"🕒 NORMAL (Enviado: {p_hora})"
-
                 st.markdown(f"""
-                    <div style="background:{fundo_card}; padding:15px; border-radius:12px; border-left:10px solid {cor_borda}; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:10px;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.75rem; font-weight:bold; color:{cor_borda};">{tag_txt}</span>
-                            <span style="background:{cor_borda}; color:{'black' if p_prioridade == 'Programar' else 'white'}; padding:2px 10px; border-radius:10px; font-size:0.7rem; font-weight:bold;">{p_prioridade.upper()}</span>
-                        </div>
+                    <div style="background:{fundo}; padding:15px; border-radius:12px; border-left:10px solid {cor}; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:10px;">
+                        <span style="font-size:0.75rem; font-weight:bold; color:{cor};">🕒 {p_hora} — {p_prioridade.upper()}</span>
                         <h4 style="margin:10px 0; color:#111;">{p_titulo}</h4>
                     </div>
                 """, unsafe_allow_html=True)
 
-                if p_texto:
-                    with st.expander("📄 VER RELEASE / CONTEÚDO", expanded=(p_prioridade == "URGENTE")):
-                        st.text_area("Texto para copiar:", value=p_texto, height=200, key=f"text_{pid}")
-
-                col_b1, col_b2 = st.columns(2)
-                with col_b1:
-                    if p_status != "Postando":
-                        if st.button(f"🚀 Iniciar Postagem", key=f"start_{pid}", use_container_width=True, type="primary"):
-                            c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (pid,))
-                            conn.commit()
-                            if p_link and "http" in p_link:
-                                st.components.v1.html(f"<script>window.open('{p_link}')</script>", height=0)
-                            st.rerun()
-                    else:
-                        if st.button("↩️ Voltar para Fila", key=f"cancel_{pid}", use_container_width=True):
-                            c.execute("UPDATE pautas_trabalho SET status='Pendente' WHERE id=?", (pid,))
-                            conn.commit(); st.rerun()
-                with col_b2:
-                    if st.button(f"✅ Marcar como Postado", key=f"postado_{pid}", use_container_width=True):
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button("🚀 Iniciar", key=f"st_{pid}", use_container_width=True, type="primary"):
+                        c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (pid,))
+                        conn.commit(); st.rerun()
+                with col2:
+                    if st.button("✅ Postado", key=f"fin_{pid}", use_container_width=True):
                         c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
                         conn.commit(); st.rerun()
-                st.markdown("<br>", unsafe_allow_html=True)
 
-        # --- ABA 2: AGENDA & GRAVAÇÕES ---
+        # --- ABA 2: AGENDA DE TRABALHO ---
         with tab_b2:
-            st.subheader("📅 Cronograma de Atividades")
+            st.subheader("📅 Compromissos do Canal/Site")
+            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' ORDER BY data_ref ASC")
+            for (tid, data_ref, titulo, descricao) in c.fetchall():
+                st.info(f"**{datetime.strptime(data_ref, '%Y-%m-%d').strftime('%d/%m')}** - {titulo}")
+                if st.button("Concluir", key=f"ag_w_{tid}"):
+                    c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
+                    conn.commit(); st.rerun()
+
+        # --- ABA 3: VIDA PESSOAL (NOVA) ---
+        with tab_b3:
+            st.markdown("### 🏠 Minha Vida Pessoal")
+            st.write("Agende treinos, consultas, boletos ou lazer.")
             
-            with st.form("form_agenda_brayan", clear_on_submit=True):
-                st.markdown("##### ✍️ Agendar Atividade")
+            # Formulário para itens pessoais
+            with st.form("form_pessoal", clear_on_submit=True):
                 col1, col2 = st.columns([2, 1])
                 with col1:
-                    b_titulo = st.text_input("O que fazer?")
-                    b_desc = st.text_area("Detalhes", height=68)
+                    p_task = st.text_input("O que agendar?")
+                    p_tipo = st.selectbox("Tipo:", ["Saúde", "Financeiro", "Lazer", "Estudo", "Outros"])
                 with col2:
-                    b_data = st.date_input("Data", value=hoje_dt, format="DD/MM/YYYY")
-                if st.form_submit_button("🚀 AGENDAR", use_container_width=True, type="primary"):
-                    if b_titulo:
+                    p_data = st.date_input("Para quando?", value=hoje_dt)
+                
+                if st.form_submit_button("➕ ADICIONAR À MINHA VIDA", use_container_width=True):
+                    if p_task:
+                        # Usando a mesma tabela mas marcando como pessoal (no campo criado_por)
                         agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
                         c.execute("INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
-                                 (b_data.strftime("%Y-%m-%d"), b_titulo, b_desc, "Pendente", "brayan", agora))
+                                 (p_data.strftime("%Y-%m-%d"), p_task, f"Tipo: {p_tipo}", "Pendente", "BRAYAN_PESSOAL", agora))
                         conn.commit(); st.rerun()
 
             st.markdown("---")
-            c.execute("SELECT id, data_ref, titulo, descricao, status FROM agenda_itens WHERE status = 'Pendente' ORDER BY data_ref ASC")
-            itens = c.fetchall()
+            # Buscar apenas itens marcados como BRAYAN_PESSOAL
+            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'BRAYAN_PESSOAL' ORDER BY data_ref ASC")
+            itens_pessoais = c.fetchall()
 
-            for (tid, data_ref, titulo, descricao, status) in itens:
-                dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
-                if dt_obj < hoje_dt: cor, tag, fundo = "#dc3545", "🚨 ATRASADO", "#fff5f5"
-                elif dt_obj == hoje_dt: cor, tag, fundo = "#ffc107", "📌 HOJE", "#fffdf5"
-                else: cor, tag, fundo = "#0d6efd", "🗓️ AGENDADO", "#f3f7ff"
-
+            if not itens_pessoais:
+                st.write("✨ Nenhum compromisso pessoal pendente.")
+            
+            for (tid, data_ref, titulo, descricao) in itens_pessoais:
+                dt_p = datetime.strptime(data_ref, "%Y-%m-%d").date()
+                cor_p = "#6f42c1" # Roxo para diferenciar do trabalho
+                
                 st.markdown(f"""
-                    <div style="background:{fundo}; padding:15px; border-radius:10px; border-left:8px solid {cor}; margin-bottom:10px;">
-                        <span style="font-weight:bold; font-size:0.8rem; color:#333;">{dt_obj.strftime('%d/%m/%Y')} — {tag}</span><br>
+                    <div style="background:#f9f5ff; padding:15px; border-radius:10px; border-left:8px solid {cor_p}; margin-bottom:10px;">
+                        <span style="font-weight:bold; color:{cor_p};">🏠 {dt_p.strftime('%d/%m/%Y')}</span>
                         <div style="font-size:1.1rem; font-weight:bold; color:#111;">{titulo}</div>
-                        {f'<div style="font-size:0.9rem; color:#555; margin-top:5px;">{descricao}</div>' if descricao else ''}
+                        <div style="font-size:0.85rem; color:#666;">{descricao}</div>
                     </div>
                 """, unsafe_allow_html=True)
 
-                if st.button("✔️ Concluir", key=f"br_concluir_{tid}"):
+                if st.button("✔️ Concluído", key=f"pers_ok_{tid}", use_container_width=True):
                     c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
                     conn.commit(); st.rerun()
         
@@ -890,6 +875,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

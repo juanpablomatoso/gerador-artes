@@ -484,6 +484,16 @@ else:
     except:
         pass
 
+    # Função auxiliar interna para garantir que o título seja carregado para edição
+    def obter_titulo_limpo(url):
+        try:
+            r = requests.get(url, timeout=5)
+            s = BeautifulSoup(r.text, 'html.parser')
+            t = s.find('title').text
+            return t.replace(' - Destaque Toledo', '').strip()
+        except:
+            return ""
+
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
     if st.session_state.perfil == "juan":
@@ -519,12 +529,11 @@ else:
 
                 # --- PARTE NOVA: CAMPO PARA VOCÊ EDITAR O TÍTULO ---
                 if url_f:
-                    # Puxa o título automático do site
-                    dados_temp = extrair_dados_blog(url_f)
-                    titulo_original = dados_temp[0] if dados_temp else ""
+                    # Puxa o título automático do site para a caixa de edição
+                    titulo_sugerido = obter_titulo_limpo(url_f)
                     
                     # Caixa para editar o texto (mudar frase, dar espaço, etc)
-                    titulo_editado = st.text_area("📝 Ajuste o título da arte se desejar:", value=titulo_original, height=100)
+                    titulo_editado = st.text_area("📝 Ajuste o título da arte se desejar:", value=titulo_sugerido, height=100)
 
                     ca, cb = st.columns(2)
 
@@ -994,6 +1003,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

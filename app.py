@@ -769,8 +769,21 @@ else:
 
         # --- ABA 1: MATÉRIAS PARA POSTAR (FILA DE TRABALHO) ---
         with tab_b1:
-            # 1. BUSCAR DADOS PARA O MONITOR INTELIGENTE
-            c.execute("SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC")
+            # 1. BUSCAR DADOS COM ORDENAÇÃO POR PRIORIDADE
+            # Criamos uma lógica onde URGENTE = 1, Normal = 2, Programar = 3
+            query = """
+                SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status 
+                FROM pautas_trabalho 
+                WHERE status != 'Concluído' 
+                ORDER BY 
+                    CASE 
+                        WHEN prioridade = 'URGENTE' THEN 1 
+                        WHEN prioridade = 'Normal' THEN 2 
+                        ELSE 3 
+                    END ASC, 
+                    id DESC
+            """
+            c.execute(query)
             pautas = c.fetchall()
             
             total_pautas = len(pautas)
@@ -788,7 +801,7 @@ else:
                 st.markdown("""
                     <div style="background-color: #f8d7da; padding: 15px; border-radius: 10px; border-left: 5px solid #dc3545; margin-bottom: 20px; animation: blinker 1.5s linear infinite;">
                         <h4 style="color: #721c24; margin: 0;">🚨 ATENÇÃO: HÁ MATÉRIA URGENTE!</h4>
-                        <p style="color: #721c24; margin: 0;">Priorize as pautas vermelhas na fila abaixo.</p>
+                        <p style="color: #721c24; margin: 0;">As matérias prioritárias foram movidas para o topo da lista.</p>
                     </div>
                     <style> @keyframes blinker { 50% { opacity: 0.6; } } </style>
                 """, unsafe_allow_html=True)
@@ -796,7 +809,7 @@ else:
                 st.markdown(f"""
                     <div style="background-color: #e7f3ff; padding: 15px; border-radius: 10px; border-left: 5px solid #004a99; margin-bottom: 20px;">
                         <h4 style="color: #004085; margin: 0;">📅 Fila de Trabalho</h4>
-                        <p style="color: #004085; margin: 0;">Você tem <b>{total_pautas}</b> matérias para postar hoje. Veja abaixo:</p>
+                        <p style="color: #004085; margin: 0;">Você tem <b>{total_pautas}</b> matérias. Siga a ordem da fila abaixo.</p>
                     </div>
                 """, unsafe_allow_html=True)
 
@@ -917,6 +930,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

@@ -609,88 +609,86 @@ else:
                             st.rerun()
 
         # ============================================================
-        # 📅 ABA AGENDA - CENTRAL ESTRATÉGICA (COM DIA DA SEMANA)
+        # 📅 ABA AGENDA - FOCO EM VISUALIZAÇÃO (COMPACTA)
         # ============================================================
         with tab3:
-            st.markdown('<p class="descricao-aba">Gestão Editorial: Pautas futuras e limpeza automática.</p>', unsafe_allow_html=True)
-
             conn = get_conn()
             c = conn.cursor()
             hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
             hoje_str = hoje_dt.strftime("%Y-%m-%d")
 
-            # --- 1) ROTINA DE LIMPEZA AUTOMÁTICA ---
+            # 1) LIMPEZA AUTOMÁTICA (Silenciosa)
             c.execute("DELETE FROM agenda_itens WHERE status = 'Concluído' AND data_ref < ?", (hoje_str,))
             conn.commit()
 
-            # --- 2) LANÇAMENTO DE COMPROMISSOS ---
-            with st.container():
-                with st.form("form_agenda_profissional", clear_on_submit=True):
-                    st.markdown("##### ✍️ Lançar Novo Compromisso")
-                    col_input_1, col_input_2 = st.columns([2, 1])
-                    with col_input_1:
-                        a_titulo = st.text_input("O que precisa ser feito?", placeholder="Ex: Cobertura da ExpoToledo")
-                        a_desc = st.text_area("Detalhes extras (opcional)", height=68)
-                    with col_input_2:
-                        a_data = st.date_input("Data de Execução", value=hoje_dt, format="DD/MM/YYYY")
-                        st.info("💡 Itens concluídos de dias passados são apagados automaticamente.")
+            # 2) CABEÇALHO COMPACTO COM BOTÃO DE LANÇAR
+            col_tit, col_btn = st.columns([3, 1])
+            with col_tit:
+                st.markdown("### 📋 Cronograma da Semana")
+            with col_btn:
+                # O formulário agora só aparece se você clicar aqui
+                with st.popover("➕ AGENDAR NOVO", use_container_width=True):
+                    with st.form("form_novo_compacto", clear_on_submit=True):
+                        st.markdown("##### Novo Compromisso")
+                        ntit = st.text_input("O que fazer?")
+                        ndes = st.text_area("Detalhes (opcional)")
+                        ndat = st.date_input("Data", value=hoje_dt)
+                        if st.form_submit_button("🚀 SALVAR", use_container_width=True):
+                            if ntit:
+                                agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
+                                c.execute("INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
+                                    (ndat.strftime("%Y-%m-%d"), ntit, ndes, "Pendente", st.session_state.perfil, agora))
+                                conn.commit(); st.rerun()
 
-                    if st.form_submit_button("🚀 AGENDAR COMPROMISSO", use_container_width=True, type="primary"):
-                        if a_titulo:
-                            agora_str = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-                            c.execute("INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
-                                (a_data.strftime("%Y-%m-%d"), a_titulo, a_desc, "Pendente", st.session_state.perfil, agora_str))
-                            conn.commit(); st.toast("Agendado!", icon="📅"); st.rerun()
-
-            st.markdown("---")
+            # 3) FILTRO RÁPIDO (Abaixo do título para ser discreto)
+            opcao_filtro = st.selectbox("Período:", ["Próximos 7 dias", "Próximos 15 dias", "Próximos 30 dias", "Tudo"], label_visibility="collapsed")
             
-            # --- 3) FILTRO E BUSCA ---
-            opcao_filtro = st.selectbox("Ver período:", ["Próximos 7 dias", "Próximos 15 dias", "Próximos 30 dias", "Tudo (Ano Inteiro)"], index=0)
-            dias_limite = {"7": 7, "15": 15, "30": 30, "Tudo": 365}[opcao_filtro.split()[1] if "Tudo" not in opcao_filtro else "Tudo"]
+            dias_map = {"7": 7, "15": 15, "30": 30, "Tudo": 365}
+            dias_limite = dias_map.get(opcao_filtro.split()[1] if " " in opcao_filtro else "Tudo", 7)
             data_limite_filtro = (hoje_dt + timedelta(days=dias_limite)).strftime("%Y-%m-%d")
 
+            # 4) BUSCA DE DADOS
             c.execute("""SELECT id, data_ref, titulo, descricao, status, criado_por FROM agenda_itens 
                          WHERE (data_ref BETWEEN ? AND ?) OR (status = 'Pendente' AND data_ref < ?)
-                         ORDER BY status DESC, data_ref ASC""", (hoje_str, data_limite_filtro, hoje_str))
+                         ORDER BY status DESC, data_ref ASC""", (hoje_str, data_limite_filtro, hoy_str := hoje_str))
             itens = c.fetchall()
 
             if not itens:
-                st.info("Nenhum compromisso encontrado.")
+                st.info("✨ Nada agendado para este período.")
             else:
-                # Dicionário para traduzir o dia da semana
                 dias_semana = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
+                cols = st.columns(3)
                 
-                cols_agenda = st.columns(3)
                 for idx, (tid, data_ref, titulo, descricao, status, criado_por) in enumerate(itens):
                     dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
-                    dia_nome = dias_semana[dt_obj.weekday()] # Pega o nome do dia
+                    dia_nome = dias_semana[dt_obj.weekday()]
                     
+                    # Cores e Status
                     if status == "Concluído": cor, fundo = "#198754", "#f1fff6"
                     elif dt_obj < hoje_dt: cor, fundo = "#dc3545", "#fff5f5"
                     elif dt_obj == hoje_dt: cor, fundo = "#ffc107", "#fffdf5"
                     else: cor, fundo = "#0d6efd", "#f3f7ff"
 
-                    with cols_agenda[idx % 3]:
+                    with cols[idx % 3]:
                         st.markdown(f"""
-                            <div style="background:{fundo}; padding:15px; border-radius:15px; border-top:5px solid {cor}; box-shadow:0 4px 10px rgba(0,0,0,0.05); min-height:130px; margin-bottom:10px;">
-                                <div style="display:flex; justify-content:space-between; align-items:start;">
-                                    <b style="color:{cor}; font-size:0.8rem;">{dt_obj.strftime('%d/%m/%Y')}</b>
-                                    <span style="font-size:0.65rem; color:#666; font-weight:bold; text-transform:uppercase;">{dia_nome}</span>
+                            <div style="background:{fundo}; padding:12px; border-radius:12px; border-top:5px solid {cor}; box-shadow:0 2px 8px rgba(0,0,0,0.05); min-height:110px; margin-bottom:10px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <b style="color:{cor}; font-size:0.75rem;">{dt_obj.strftime('%d/%m')}</b>
+                                    <span style="font-size:0.6rem; color:#666; font-weight:bold;">{dia_nome.upper()}</span>
                                 </div>
-                                <div style="font-weight:bold; font-size:1rem; margin-top:8px; color:#222; line-height:1.1;">{titulo}</div>
-                                <div style="font-size:0.7rem; color:#888; margin-top:5px;">RESP: {criado_por.upper()}</div>
+                                <div style="font-weight:bold; font-size:0.95rem; margin-top:5px; color:#111;">{titulo}</div>
                             </div>
                         """, unsafe_allow_html=True)
                         
+                        # Botões compactos lado a lado
                         b1, b2 = st.columns(2)
                         with b1:
-                            if st.button("✅ OK" if status == "Pendente" else "↩️", key=f"btn_ok_{tid}", use_container_width=True):
-                                novo_st = "Concluído" if status == "Pendente" else "Pendente"
-                                c.execute("UPDATE agenda_itens SET status=? WHERE id=?", (novo_st, tid))
+                            if st.button("✅ OK" if status == "Pendente" else "↩️", key=f"ok_{tid}", use_container_width=True):
+                                c.execute("UPDATE agenda_itens SET status=? WHERE id=?", ("Concluído" if status == "Pendente" else "Pendente", tid))
                                 conn.commit(); st.rerun()
                         with b2:
-                            with st.popover("📝 EDITAR", use_container_width=True):
-                                with st.form(f"f_ed_{tid}"):
+                            with st.popover("📝 EDIT", use_container_width=True):
+                                with st.form(f"edit_{tid}"):
                                     nt = st.text_input("Título", value=titulo)
                                     nd = st.date_input("Data", value=dt_obj)
                                     if st.form_submit_button("Salvar"):
@@ -884,6 +882,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

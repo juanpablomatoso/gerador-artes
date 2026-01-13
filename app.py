@@ -24,7 +24,7 @@ st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon
 st.markdown(
     """
     <style>
-    /* REMOVIDO: .stApp { background-color: #f8f9fa; } -> Deixa o sistema decidir a cor do fundo */
+    /* REMOVIDO:  -> Deixa o sistema decidir a cor do fundo */
 
     /* Força títulos e textos a seguirem a cor padrão do tema (branco no escuro, preto no claro) */
     h1, h2, h3, h4, p, span, label {
@@ -45,7 +45,7 @@ st.markdown(
         background-color: var(--secondary-background-color); 
         padding: 20px; border-radius: 12px;
         border-left: 6px solid #004a99; margin-bottom: 15px;
-        border: 1px solid rgba(128, 128, 128, 0.2); /* Borda sutil para dar profundidade */
+        border: 1px solid rgba(128,128,128,0.3); /* Borda sutil para dar profundidade */
     }
 
     /* Ajuste para cards específicos: mantendo a borda colorida mas mudando o fundo */
@@ -744,7 +744,7 @@ else:
                     st.markdown(f"""
                         <div style="background:{fundo}; padding:16px; border-radius:12px; border-left:10px solid {cor}; margin-bottom:12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08);">
                             <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-weight:bold; color:#333; font-size:0.9rem;">{data_br} — {tag}</span>
+                                <span style="font-weight:bold; color: var(--text-color); font-size:0.9rem;">{data_br} — {tag}</span>
                                 <span style="background:#eee; padding:2px 8px; border-radius:15px; font-size:0.7rem; color:#666;">RESP: {criado_por.upper()}</span>
                             </div>
                             <div style="font-size:1.25rem; font-weight:800; margin-top:8px; color:#111; line-height:1.2;">{titulo}</div>
@@ -963,6 +963,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

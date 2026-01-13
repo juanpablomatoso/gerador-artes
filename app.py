@@ -716,6 +716,7 @@ else:
         c = conn.cursor()
         hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
         hoje_str = hoje_dt.strftime("%Y-%m-%d")
+        dias_semana = ["Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado", "Domingo"]
 
         # CSS Original Preservado
         st.markdown("""
@@ -746,7 +747,7 @@ else:
             st.markdown(f"<h1 style='margin-bottom:0;'>Controle de Operações</h1>", unsafe_allow_html=True)
             st.markdown(f"<p style='color:#666; font-size:1.1rem;'>Bem-vindo, <b>Brayan</b>. Status do sistema: <span style='color:green;'>● Online</span></p>", unsafe_allow_html=True)
         
-        # KPIs - Apenas 2 colunas (Fila e Agenda)
+        # KPIs
         c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status != 'Concluído'")
         pautas_ativas = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan'")
@@ -761,7 +762,7 @@ else:
         st.markdown("<br>", unsafe_allow_html=True)
         t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
-        # --- ABA 1: TRABALHO (ORIGINAL) ---
+        # --- ABA 1: TRABALHO (ORIGINAL PRESERVADA) ---
         with t_work:
             c.execute("""
                 SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status 
@@ -798,7 +799,7 @@ else:
                     if obs:
                         with st.expander("📄 Ver Conteúdo"): st.write(obs)
 
-        # --- ABA 2: CRONOGRAMA TRABALHO (BOTÕES LADO A LADO) ---
+        # --- ABA 2: CRONOGRAMA TRABALHO (ESTILO COMPACTO APLICADO) ---
         with t_agenda:
             st.markdown("### 📅 Cronograma de Trabalho")
             c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan' ORDER BY data_ref ASC")
@@ -809,29 +810,42 @@ else:
                 cols = st.columns(3)
                 for idx, (tid, data, t, d) in enumerate(itens_work):
                     dt = datetime.strptime(data, "%Y-%m-%d").date()
+                    dia_n = dias_semana[dt.weekday()]
                     with cols[idx % 3]:
+                        # Card Compacto
+                        html_d = f'<div style="font-size:0.75rem; color:#555; margin-top:4px; font-style: italic;">{(d[:40] + "...") if len(d) > 40 else d}</div>' if d else ""
                         st.markdown(f"""
-                            <div style="background:white; padding:15px; border-radius:15px; border-top:5px solid #004a99; box-shadow:0 4px 10px rgba(0,0,0,0.05); min-height:100px; margin-bottom:5px;">
-                                <b style="color:#004a99; font-size:0.8rem;">{dt.strftime('%d/%m/%Y')}</b><br>
-                                <div style="font-weight:bold; font-size:1rem; margin-top:5px; color:#222;">{t}</div>
+                            <div style="background:white; padding:10px 12px; border-radius:12px; border-top:4px solid #004a99; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                    <b style="color:#004a99; font-size:0.7rem;">{dt.strftime('%d/%m/%Y')}</b>
+                                    <span style="font-size:0.55rem; color:#888; font-weight:bold;">{dia_n.upper()}</span>
+                                </div>
+                                <div style="font-weight:800; font-size:0.85rem; color:#111; text-transform: uppercase; line-height:1.1;">{t.upper()}</div>
+                                {html_d}
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        btn_c1, btn_c2 = st.columns(2)
+                        btn_c1, btn_c2, btn_c3 = st.columns([1, 1, 0.7])
                         with btn_c1:
-                            if st.button("✅ OK", key=f"at_{tid}", use_container_width=True):
+                            if st.button("✅", key=f"at_{tid}", use_container_width=True):
                                 c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
                                 conn.commit(); st.rerun()
                         with btn_c2:
-                            with st.popover("📝 EDITAR", use_container_width=True):
+                            with st.popover("📝", use_container_width=True):
                                 with st.form(f"f_ed_w_{tid}"):
-                                    nt = st.text_input("Novo Título", value=t)
-                                    nd = st.date_input("Nova Data", value=dt)
-                                    if st.form_submit_button("Salvar Alteração"):
-                                        c.execute("UPDATE agenda_itens SET titulo=?, data_ref=? WHERE id=?", (nt, nd.strftime("%Y-%m-%d"), tid))
+                                    nt = st.text_input("Título", value=t.upper())
+                                    nd = st.date_input("Data", value=dt, format="DD/MM/YYYY")
+                                    ns = st.text_area("Obs", value=d if d else "")
+                                    if st.form_submit_button("Salvar"):
+                                        c.execute("UPDATE agenda_itens SET titulo=?, data_ref=?, descricao=? WHERE id=?", (nt, nd.strftime("%Y-%m-%d"), ns, tid))
                                         conn.commit(); st.rerun()
+                        with btn_c3:
+                            if d:
+                                with st.popover("ℹ️", use_container_width=True): st.write(d)
+                            else:
+                                st.button("ℹ️", key=f"no_dw_{tid}", disabled=True, use_container_width=True)
 
-        # --- ABA 3: VIDA PESSOAL (BOTÕES LADO A LADO) ---
+        # --- ABA 3: VIDA PESSOAL (ESTILO COMPACTO APLICADO) ---
         with t_pessoal:
             st.markdown("### 🏠 Agenda Pessoal")
             c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
@@ -839,32 +853,44 @@ else:
             if not itens_pess:
                 st.info("✨ Tudo organizado na vida pessoal por enquanto.")
             else:
-                cols_p = st.columns(4)
+                cols_p = st.columns(3)
                 for idx, (tid, data, t, d) in enumerate(itens_pess):
                     dt_p = datetime.strptime(data, "%Y-%m-%d").date()
-                    with cols_p[idx % 4]:
+                    dia_p = dias_semana[dt_p.weekday()]
+                    with cols_p[idx % 3]:
+                        html_dp = f'<div style="font-size:0.75rem; color:#555; margin-top:4px; font-style: italic;">{(d[:40] + "...") if len(d) > 40 else d}</div>' if d else ""
                         st.markdown(f"""
-                            <div style="background: #f9f5ff; padding: 12px; border-radius: 15px; border: 1px solid #e0d5f5; border-top: 5px solid #6f42c1; text-align: center; min-height: 100px; margin-bottom: 5px;">
-                                <span style="color:#6f42c1; font-weight:bold; font-size:0.75rem;">🏠 {dt_p.strftime('%d/%m')}</span>
-                                <div style="font-weight:700; font-size:0.9rem; color:#333; margin-top:5px;">{t}</div>
+                            <div style="background: #f9f5ff; padding: 10px 12px; border-radius: 12px; border-top: 5px solid #6f42c1; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom: 8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                    <b style="color:#6f42c1; font-size:0.7rem;">{dt_p.strftime('%d/%m/%Y')}</b>
+                                    <span style="font-size:0.55rem; color:#888; font-weight:bold;">{dia_p.upper()}</span>
+                                </div>
+                                <div style="font-weight:800; font-size:0.85rem; color:#333; text-transform: uppercase; line-height:1.1;">{t.upper()}</div>
+                                {html_dp}
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        btn_p1, btn_p2 = st.columns(2)
+                        btn_p1, btn_p2, btn_p3 = st.columns([1, 1, 0.7])
                         with btn_p1:
-                            if st.button("OK", key=f"ps_ok_{tid}", use_container_width=True):
+                            if st.button("✅", key=f"ps_ok_{tid}", use_container_width=True):
                                 c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
                                 conn.commit(); st.rerun()
                         with btn_p2:
-                            with st.popover("📝 EDITAR", use_container_width=True):
+                            with st.popover("📝", use_container_width=True):
                                 with st.form(f"f_ed_p_{tid}"):
-                                    nt = st.text_input("Novo Título", value=t)
-                                    nd = st.date_input("Nova Data", value=dt_p)
-                                    if st.form_submit_button("Salvar Alteração"):
-                                        c.execute("UPDATE agenda_itens SET titulo=?, data_ref=? WHERE id=?", (nt, nd.strftime("%Y-%m-%d"), tid))
+                                    nt = st.text_input("Título", value=t.upper())
+                                    nd = st.date_input("Data", value=dt_p, format="DD/MM/YYYY")
+                                    ns = st.text_area("Obs", value=d if d else "")
+                                    if st.form_submit_button("Salvar"):
+                                        c.execute("UPDATE agenda_itens SET titulo=?, data_ref=?, descricao=? WHERE id=?", (nt, nd.strftime("%Y-%m-%d"), ns, tid))
                                         conn.commit(); st.rerun()
+                        with btn_p3:
+                            if d:
+                                with st.popover("ℹ️", use_container_width=True): st.write(d)
+                            else:
+                                st.button("ℹ️", key=f"no_dp_{tid}", disabled=True, use_container_width=True)
 
-        # --- ABA 4: NOVO ---
+        # --- ABA 4: NOVO (ESTILO BR) ---
         with t_add:
             st.markdown("### ➕ Nova Entrada")
             tipo = st.segmented_control("Onde cadastrar?", ["Trabalho", "Vida Pessoal"], default="Trabalho")
@@ -890,6 +916,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

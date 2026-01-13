@@ -774,7 +774,6 @@ else:
         with tab_b1:
             st.markdown('<p class="descricao-aba">Fila de postagem oficial do portal.</p>', unsafe_allow_html=True)
             
-            # Busca matérias que não estão concluídas
             c.execute("SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC")
             pautas = c.fetchall()
 
@@ -784,7 +783,6 @@ else:
                 for p in pautas:
                     pid, p_titulo, p_link, p_prioridade, p_hora, p_texto, p_status = p
                     
-                    # Estilo visual: Se estiver postando agora, fica Laranja
                     if p_status == "Postando":
                         cor_borda, fundo_card, tag_txt = "#fd7e14", "#fff4e6", "⚡ VOCÊ ESTÁ POSTANDO AGORA"
                     else:
@@ -802,28 +800,30 @@ else:
                         </div>
                     """, unsafe_allow_html=True)
                     
-                    # SE TIVER LINK, MOSTRA O BOTÃO
-                    if p_link and p_link != "Sem link":
-                        st.link_button(f"🔗 ABRIR LINK DA MATÉRIA", p_link, use_container_width=True)
-                    
-                    # SE TIVER TEXTO/RELEASE (Vindo do campo observação/p_texto)
                     if p_texto:
                         with st.expander("📄 VER TEXTO / RELEASE PARA COPIAR", expanded=True):
                             st.text_area("Conteúdo da Matéria:", value=p_texto, height=250, key=f"text_{pid}")
-                            st.caption("Você pode copiar o texto acima e colar direto no site.")
 
                     col_b1, col_b2 = st.columns(2)
                     with col_b1:
                         if p_status != "Postando":
-                            if st.button(f"🚀 Começar a Postar", key=f"start_{pid}", use_container_width=True):
+                            # O NOVO BOTÃO INTEGRADO
+                            if st.button(f"🚀 Começar a Postar", key=f"start_{pid}", use_container_width=True, type="primary"):
+                                # 1. Atualiza o status no banco
                                 c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (pid,))
                                 conn.commit()
+                                
+                                # 2. Abre o link automaticamente se ele existir
+                                if p_link and p_link != "Sem link":
+                                    js = f"window.open('{p_link}')"
+                                    st.components.v1.html(f"<script>{js}</script>", height=0)
+                                
                                 st.rerun()
                         else:
                             st.button("🚧 Em andamento...", disabled=True, key=f"act_{pid}", use_container_width=True)
                     
                     with col_b2:
-                        if st.button(f"✅ Finalizado", key=f"postado_{pid}", use_container_width=True, type="primary"):
+                        if st.button(f"✅ Finalizado", key=f"postado_{pid}", use_container_width=True):
                             c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
                             conn.commit()
                             st.rerun()
@@ -925,6 +925,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

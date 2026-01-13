@@ -19,41 +19,74 @@ import re
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
 # ============================================================
-# 2) ESTILIZAÇÃO CSS PROFISSIONAL
+# 2) ESTILIZAÇÃO CSS PROFISSIONAL (ADAPTADO PARA MODO ESCURO)
 # ============================================================
 st.markdown(
     """
     <style>
-    .stApp { background-color: #f8f9fa; }
+    /* REMOVIDO: .stApp { background-color: #f8f9fa; } -> Deixa o sistema decidir a cor do fundo */
+
+    /* Força títulos e textos a seguirem a cor padrão do tema (branco no escuro, preto no claro) */
+    h1, h2, h3, h4, p, span, label {
+        color: var(--text-color) !important;
+    }
+
     .topo-titulo {
         text-align: center; padding: 30px;
         background: linear-gradient(90deg, #004a99 0%, #007bff 100%);
-        color: white; border-radius: 15px; margin-bottom: 25px;
+        color: white !important; /* Título do topo continua sempre branco */
+        border-radius: 15px; margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+    .topo-titulo h1 { color: white !important; }
+
     .card-pauta {
-        background-color: white; padding: 20px; border-radius: 12px;
+        /* Usa a cor de fundo secundária do tema do Streamlit */
+        background-color: var(--secondary-background-color); 
+        padding: 20px; border-radius: 12px;
         border-left: 6px solid #004a99; margin-bottom: 15px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        border: 1px solid rgba(128, 128, 128, 0.2); /* Borda sutil para dar profundidade */
     }
-    .card-urgente { border-left: 6px solid #dc3545; background-color: #fff5f5; }
-    .card-programar { border-left: 6px solid #ffc107; background-color: #fffdf5; }
+
+    /* Ajuste para cards específicos: mantendo a borda colorida mas mudando o fundo */
+    .card-urgente { 
+        border-left: 6px solid #dc3545; 
+        background-color: rgba(220, 53, 69, 0.1); /* Fundo avermelhado transparente */
+    }
+    .card-programar { 
+        border-left: 6px solid #ffc107; 
+        background-color: rgba(255, 193, 7, 0.1); /* Fundo amarelado transparente */
+    }
+
     .tag-status {
         padding: 4px 12px; border-radius: 20px; font-size: 0.75rem;
         font-weight: bold; text-transform: uppercase;
     }
+
     .tag-urgente { background-color: #dc3545; color: white; }
-    .tag-normal { background-color: #e9ecef; color: #495057; }
+    .tag-normal { background-color: rgba(128, 128, 128, 0.2); color: var(--text-color); }
     .tag-programar { background-color: #ffc107; color: #000; }
+
     .obs-box {
-        background-color: #e7f1ff; padding: 12px; border-radius: 8px;
-        border: 1px dashed #004a99; margin-top: 10px; margin-bottom: 15px; font-style: italic;
+        background-color: rgba(0, 74, 153, 0.1); 
+        padding: 12px; border-radius: 8px;
+        border: 1px dashed #004a99; margin-top: 10px; margin-bottom: 15px; 
+        font-style: italic; color: var(--text-color);
     }
+
     .boas-vindas {
         font-size: 1.5rem; font-weight: bold; color: #004a99; margin-bottom: 10px;
     }
+
     .descricao-aba {
-        color: #666; font-size: 0.95rem; margin-bottom: 20px; line-height: 1.4;
+        color: var(--text-color); opacity: 0.8; font-size: 0.95rem; 
+        margin-bottom: 20px; line-height: 1.4;
+    }
+
+    /* Ajuste para Celular */
+    @media (max-width: 640px) {
+        .topo-titulo { padding: 15px; }
+        .topo-titulo h1 { font-size: 1.4rem !important; }
     }
     </style>
     """,
@@ -930,6 +963,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

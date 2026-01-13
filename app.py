@@ -515,15 +515,30 @@ else:
                         st.session_state.url_atual = item["u"]
 
             with col_preview:
-                url_f = st.text_input("Link da Matéria:", value=st.session_state.get("url_atual", ""))
+            url_f = st.text_input("Link da Matéria:", value=st.session_state.get("url_atual", ""))
 
-                if url_f:
-                    ca, cb = st.columns(2)
+            # --- NOVA LÓGICA DE EDIÇÃO DE TEXTO ---
+            texto_para_arte = ""
+            if url_f:
+                # Busca o título automático apenas se o link mudar
+                dados_materia = extrair_dados_blog(url_f)
+                titulo_auto = dados_materia[0] if dados_materia else ""
+                
+                # Cria uma caixa para você editar o título se quiser
+                texto_para_arte = st.text_area(
+                    "📝 Ajuste o título da arte (se precisar):", 
+                    value=titulo_auto,
+                    height=100,
+                    key="editor_titulo"
+                )
 
-                    if ca.button("🖼️ GERAR FEED", use_container_width=True, type="primary"):
-                        try:
-                            img = processar_artes_integrado(url_f, "FEED")
-                            st.image(img)
+                ca, cb = st.columns(2)
+
+                if ca.button("🖼️ GERAR FEED", use_container_width=True, type="primary"):
+                    try:
+                        # Enviamos o 'texto_para_arte' (editado por você) para a função
+                        img = processar_artes_integrado(url_f, "FEED", titulo_personalizado=texto_para_arte)
+                        st.image(img)
 
                             buf = io.BytesIO()
                             img.save(buf, "JPEG", quality=95, optimize=True)
@@ -984,6 +999,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

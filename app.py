@@ -799,7 +799,7 @@ else:
                     if obs:
                         with st.expander("📄 Ver Conteúdo"): st.write(obs)
 
-        # --- ABA 2: CRONOGRAMA TRABALHO (COM FILTRO DENTRO DA ABA E CORES) ---
+        # --- ABA 2: CRONOGRAMA TRABALHO (LÓGICA DE FILTRO AJUSTADA) ---
         with t_agenda:
             col_tit, col_fil = st.columns([2, 1])
             with col_tit: st.markdown("### 📅 Cronograma de Trabalho")
@@ -809,10 +809,12 @@ else:
             d_lim = {"7 dias": 7, "15 dias": 15, "30 dias": 30, "Tudo": 9999}.get(f_w, 7)
             dt_lim_str = (hoje_dt + timedelta(days=d_lim)).strftime("%Y-%m-%d")
 
+            # BUSCA: Pendentes que estão dentro do prazo OU que já passaram da data (Atrasados)
             c.execute("""SELECT id, data_ref, titulo, descricao FROM agenda_itens 
                          WHERE status = 'Pendente' AND criado_por = 'brayan' 
-                         AND data_ref <= ? ORDER BY data_ref ASC""", (dt_lim_str,))
+                         AND (data_ref <= ? OR data_ref < ?) ORDER BY data_ref ASC""", (dt_lim_str, hoje_str))
             itens_work = c.fetchall()
+            
             if not itens_work:
                 st.write("✨ Nenhuma atividade de trabalho pendente.")
             else:
@@ -821,7 +823,6 @@ else:
                     dt = datetime.strptime(data, "%Y-%m-%d").date()
                     dia_n = dias_semana[dt.weekday()]
                     
-                    # Cores Inteligentes
                     if dt < hoje_dt: cor, fundo = "#dc3545", "#fff5f5"      # Atrasado
                     elif dt == hoje_dt: cor, fundo = "#ffc107", "#fffdf5"   # Hoje
                     else: cor, fundo = "#004a99", "white"                   # Futuro
@@ -859,7 +860,7 @@ else:
                             else:
                                 st.button("ℹ️", key=f"no_dw_{tid}", disabled=True, use_container_width=True)
 
-        # --- ABA 3: VIDA PESSOAL (COM FILTRO DENTRO DA ABA E CORES) ---
+        # --- ABA 3: VIDA PESSOAL (LÓGICA DE FILTRO AJUSTADA) ---
         with t_pessoal:
             col_titp, col_filp = st.columns([2, 1])
             with col_titp: st.markdown("### 🏠 Agenda Pessoal")
@@ -869,10 +870,12 @@ else:
             d_limp = {"7 dias": 7, "15 dias": 15, "30 dias": 30, "Tudo": 9999}.get(f_p, 7)
             dt_limp_str = (hoje_dt + timedelta(days=d_limp)).strftime("%Y-%m-%d")
 
+            # BUSCA: Pendentes que estão dentro do prazo OU que já passaram da data (Atrasados)
             c.execute("""SELECT id, data_ref, titulo, descricao FROM agenda_itens 
                          WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' 
-                         AND data_ref <= ? ORDER BY data_ref ASC""", (dt_limp_str,))
+                         AND (data_ref <= ? OR data_ref < ?) ORDER BY data_ref ASC""", (dt_limp_str, hoje_str))
             itens_pess = c.fetchall()
+
             if not itens_pess:
                 st.info("✨ Vida pessoal organizada no período.")
             else:
@@ -881,7 +884,6 @@ else:
                     dt_p = datetime.strptime(data, "%Y-%m-%d").date()
                     dia_p = dias_semana[dt_p.weekday()]
 
-                    # Cores Inteligentes Pessoal
                     if dt_p < hoje_dt: cor_p, fundo_p = "#dc3545", "#fff5f5"
                     elif dt_p == hoje_dt: cor_p, fundo_p = "#ffc107", "#fffdf5"
                     else: cor_p, fundo_p = "#6f42c1", "#f9f5ff"
@@ -919,7 +921,7 @@ else:
                             else:
                                 st.button("ℹ️", key=f"no_dp_{tid}", disabled=True, use_container_width=True)
 
-        # --- ABA 4: NOVO ---
+        # --- ABA 4: NOVO (PRESERVADA) ---
         with t_add:
             st.markdown("### ➕ Nova Entrada")
             tipo = st.segmented_control("Onde cadastrar?", ["Trabalho", "Vida Pessoal"], default="Trabalho")
@@ -945,6 +947,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

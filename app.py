@@ -269,28 +269,28 @@ def aplicar_template_se_existir(base_img: Image.Image, template_path: str, size:
         tmp = Image.open(template_path).convert("RGBA").resize(size)
         base_img.alpha_composite(tmp)
 
-def processar_artes_integrado(url: str, tipo_solicitado: str) -> Image.Image:
+def processar_artes_integrado(url: str, tipo_solicitado: str, titulo_personalizado: str = None) -> Image.Image:
     garantir_fonte()
 
     html = safe_get_text(url)
     soup = BeautifulSoup(html, "html.parser")
 
-    titulo = extrair_titulo(soup)
+    # --- AJUSTE AQUI: Lógica de escolha do título ---
+    titulo_site = extrair_titulo(soup)
+    # Se você digitou algo na caixa, usamos o seu. Se estiver vazio, usa o do site.
+    titulo = titulo_personalizado if titulo_personalizado and titulo_personalizado.strip() != "" else titulo_site
+    
     img_url = encontrar_primeira_imagem_util(url, soup)
 
     if not img_url:
-        raise ValueError("Não foi encontrada uma imagem válida na matéria (ou só há logos/ícones).")
+        raise ValueError("Não foi encontrada uma imagem válida na matéria.")
 
     img_original = Image.open(io.BytesIO(safe_get_bytes(img_url))).convert("RGBA")
     larg_o, alt_o = img_original.size
-    if alt_o == 0:
-        raise ValueError("Imagem inválida (altura zero).")
-
     prop_o = larg_o / alt_o
 
     if tipo_solicitado == "FEED":
         TAMANHO_FEED = 1000
-
         if prop_o > 1.0:
             n_alt = TAMANHO_FEED
             n_larg = int(n_alt * prop_o)
@@ -306,17 +306,15 @@ def processar_artes_integrado(url: str, tipo_solicitado: str) -> Image.Image:
 
         fundo = fundo.convert("RGBA")
         aplicar_template_se_existir(fundo, TEMPLATE_FEED, (TAMANHO_FEED, TAMANHO_FEED))
-
         draw = ImageDraw.Draw(fundo)
 
         tam = 85
         while tam > 20:
             fonte = ImageFont.truetype(CAMINHO_FONTE, tam)
-            try:
-                limite = int(662 / (fonte.getlength("W") * 0.55))
-            except Exception:
-                limite = 26
-
+            try: limite = int(662 / (fonte.getlength("W") * 0.55))
+            except: limite = 26
+            
+            # O textwrap agora usa o 'titulo' que pode ser o seu editado
             linhas = textwrap.wrap(titulo, width=max(10, limite))
             alt_bloco = (len(linhas) * tam) + ((len(linhas) - 1) * 4)
             if alt_bloco <= 165 and len(linhas) <= 3:
@@ -329,13 +327,11 @@ def processar_artes_integrado(url: str, tipo_solicitado: str) -> Image.Image:
             larg_l = bbox[2] - bbox[0]
             draw.text((488 - (larg_l // 2), y), lin, fill="black", font=fonte)
             y += tam + 4
-
         return fundo.convert("RGB")
 
     # STORY
     LARG_STORY, ALT_STORY = 940, 541
     ratio_a = LARG_STORY / ALT_STORY
-
     if prop_o > ratio_a:
         ns_alt = ALT_STORY
         ns_larg = int(ns_alt * prop_o)
@@ -344,26 +340,22 @@ def processar_artes_integrado(url: str, tipo_solicitado: str) -> Image.Image:
         ns_alt = int(ns_larg / prop_o)
 
     img_redim = img_original.resize((ns_larg, ns_alt), Image.LANCZOS)
-
     l_cut = (ns_larg - LARG_STORY) / 2
     t_cut = (ns_alt - ALT_STORY) / 2
-
     img_final = img_redim.crop((l_cut, t_cut, l_cut + LARG_STORY, t_cut + ALT_STORY))
+    
     storie_canvas = Image.new("RGBA", (1080, 1920), (0, 0, 0, 255))
     storie_canvas.paste(img_final, (69, 504))
-
     aplicar_template_se_existir(storie_canvas, TEMPLATE_STORIE, (1080, 1920))
 
     draw_s = ImageDraw.Draw(storie_canvas)
-
     tam_s = 60
     while tam_s > 20:
         fonte_s = ImageFont.truetype(CAMINHO_FONTE, tam_s)
-        try:
-            limite_s = int(912 / (fonte_s.getlength("W") * 0.55))
-        except Exception:
-            limite_s = 34
-
+        try: limite_s = int(912 / (fonte_s.getlength("W") * 0.55))
+        except: limite_s = 34
+        
+        # O textwrap do story também usa o seu 'titulo' editado
         linhas_s = textwrap.wrap(titulo, width=max(10, limite_s))
         alt_bloco_s = (len(linhas_s) * tam_s) + (len(linhas_s) * 10)
         if alt_bloco_s <= 300 and len(linhas_s) <= 4:
@@ -1003,6 +995,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

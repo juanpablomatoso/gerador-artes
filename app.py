@@ -746,40 +746,35 @@ else:
 
     else:
         # ============================================================
-        # PAINEL BRAYAN - VERSÃO FINAL À PROVA DE MODO ESCURO
+        # PAINEL BRAYAN - VERSÃO "NATIVA" (À PROVA DE ERROS)
         # ============================================================
         
-        # CSS Ultra-específico para corrigir o bug das abas e textos sumindo
+        # Este CSS limpa as cores fixas e garante que o texto siga o sistema
         st.markdown("""
             <style>
-                /* Garante que o texto de dentro do painel do Brayan siga o tema */
-                .brayan-container * {
+                /* Força o texto de todas as abas e divs a usar a cor do tema (Claro ou Escuro) */
+                .stTabs [data-baseweb="tab-list"] button [data-testid="stMarkdownContainer"] p {
                     color: var(--text-color) !important;
                 }
-                /* Ajuste específico para as abas (Tabs) não ficarem brancas no escuro */
-                button[data-baseweb="tab"] p {
-                    color: var(--text-color) !important;
-                }
-                /* Estilo dos Cards sem cores fixas (Branco/Preto) */
-                .card-trabalho {
-                    background-color: var(--secondary-background-color) !important;
+                
+                .card-brayan {
+                    border: 1px solid rgba(128, 128, 128, 0.3);
+                    border-radius: 10px;
                     padding: 15px;
-                    border-radius: 12px;
-                    margin-bottom: 12px;
-                    border: 1px solid rgba(128, 128, 128, 0.2);
-                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    margin-bottom: 15px;
+                    /* Não definimos background-color para o sistema usar o nativo */
                 }
-                .texto-card {
-                    font-weight: bold;
+
+                .titulo-card {
                     font-size: 1.1rem;
-                    margin-top: 8px;
+                    font-weight: bold;
+                    color: var(--text-color) !important;
                     display: block;
+                    margin-top: 5px;
                 }
             </style>
         """, unsafe_allow_html=True)
 
-        st.markdown('<div class="brayan-container">', unsafe_allow_html=True)
-        
         conn = get_conn()
         c = conn.cursor()
         hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
@@ -789,91 +784,68 @@ else:
         c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Concluído' AND data_envio LIKE ?", (f"{hoje_str}%",))
         total_hoje = c.fetchone()[0]
 
-        # Cabeçalho de Produtividade (Mantemos verde pois o contraste com branco é fixo aqui)
-        st.markdown(f"""
-            <div style="background: linear-gradient(90deg, #198754 0%, #28a745 100%); padding: 20px; border-radius: 15px; text-align: center; margin-bottom: 20px;">
-                <h2 style="margin:0; font-size:1.8rem; color: white !important;">🚀 Mandando bem, Brayan!</h2>
-                <p style="margin:0; font-size: 1.2rem; color: white !important;">Você já postou <b>{total_hoje}</b> matérias hoje.</p>
-            </div>
-        """, unsafe_allow_html=True)
+        # Mantemos o topo verde pois o contraste Verde/Branco funciona em qualquer modo
+        st.success(f"🚀 **Mandando bem, Brayan!** Você já postou **{total_hoje}** matérias hoje.")
         
         tab_b1, tab_b2 = st.tabs(["📝 FILA DE POSTAGEM", "📅 AGENDA & GRAVAÇÕES"])
 
+        # --- ABA 1: FILA ---
         with tab_b1:
             c.execute("SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC")
             pautas = c.fetchall()
             
-            if not pautas:
-                st.info("✅ Nenhuma matéria pendente.")
-            
             for p in pautas:
                 pid, p_titulo, p_link, p_prioridade, p_hora, p_texto, p_status = p
-                
-                # Cores de borda dinâmicas
-                cor_borda = "#dc3545" if p_prioridade == "URGENTE" else "#004a99"
-                if p_status == "Postando": cor_borda = "#fd7e14"
+                cor = "#dc3545" if p_prioridade == "URGENTE" else "#004a99"
+                if p_status == "Postando": cor = "#fd7e14"
 
+                # CARD SEM FUNDO FIXO (Transparente para assumir o fundo do Streamlit)
                 st.markdown(f"""
-                    <div class="card-trabalho" style="border-left: 8px solid {cor_borda} !important;">
-                        <div style="display:flex; justify-content:space-between; align-items:center;">
-                            <span style="font-size:0.8rem; font-weight:bold; color:{cor_borda} !important;">🕒 {p_hora}</span>
-                            <span style="background:{cor_borda}; color:white !important; padding:2px 10px; border-radius:10px; font-size:0.7rem;">{p_prioridade.upper()}</span>
-                        </div>
-                        <span class="texto-card">{p_titulo}</span>
+                    <div class="card-brayan" style="border-left: 8px solid {cor} !important;">
+                        <span style="color:{cor}; font-weight:bold; font-size:0.8rem;">🕒 {p_hora} — {p_prioridade.upper()}</span>
+                        <span class="titulo-card">{p_titulo}</span>
                     </div>
                 """, unsafe_allow_html=True)
 
-                if p_texto:
-                    with st.expander("📄 VER RELEASE"):
-                        st.text_area("Copiar conteúdo:", value=p_texto, height=200, key=f"txt_br_{pid}")
-
                 col_b1, col_b2 = st.columns(2)
                 with col_b1:
-                    if p_status != "Postando":
-                        if st.button(f"🚀 Iniciar", key=f"st_{pid}", use_container_width=True, type="primary"):
-                            c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (pid,))
-                            conn.commit()
-                            if p_link and p_link not in ["Sem link", "", "http://", "https://"]:
-                                st.components.v1.html(f"<script>window.open('{p_link}')</script>", height=0)
-                            st.rerun()
-                    else:
-                        st.button("↩️ Em Andamento...", key=f"prog_{pid}", disabled=True, use_container_width=True)
-                with col_b2:
-                    if st.button(f"✅ Concluir", key=f"fin_{pid}", use_container_width=True):
-                        c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
+                    if st.button(f"🚀 Iniciar", key=f"start_{pid}", use_container_width=True, type="primary"):
+                        c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (pid,))
                         conn.commit()
+                        if p_link and "http" in p_link:
+                            st.components.v1.html(f"<script>window.open('{p_link}')</script>", height=0)
                         st.rerun()
+                with col_b2:
+                    if st.button(f"✅ Feito", key=f"done_{pid}", use_container_width=True):
+                        c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
+                        conn.commit(); st.rerun()
 
+        # --- ABA 2: AGENDA (CORRIGIDA) ---
         with tab_b2:
-            st.subheader("📅 Atividades Agendadas")
+            st.markdown("### 📅 Próximas Atividades")
             
-            # Buscando itens da agenda
             c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' ORDER BY data_ref ASC")
             itens = c.fetchall()
 
-            if not itens:
-                st.write("Nada agendado para os próximos dias.")
-            
             for (tid, data_ref, titulo, descricao) in itens:
                 dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
                 cor_ag = "#0d6efd" 
                 if dt_obj <= hoje_dt: cor_ag = "#ffc107"
 
+                # Usando a mesma estrutura de card transparente
                 st.markdown(f"""
-                    <div class="card-trabalho" style="border-left: 8px solid {cor_ag} !important;">
-                        <span style="font-weight:bold; color:{cor_ag} !important;">📅 {dt_obj.strftime('%d/%m/%Y')}</span>
-                        <div class="texto-card">{titulo}</div>
-                        <div style="font-size:0.9rem; opacity:0.8; margin-top:5px;">{descricao if descricao else ''}</div>
+                    <div class="card-brayan" style="border-left: 8px solid {cor_ag} !important;">
+                        <span style="color:{cor_ag}; font-weight:bold;">🗓️ {dt_obj.strftime('%d/%m/%Y')}</span>
+                        <span class="titulo-card">{titulo}</span>
+                        <p style="font-size:0.9rem; margin-top:5px; opacity:0.8;">{descricao if descricao else ''}</p>
                     </div>
                 """, unsafe_allow_html=True)
 
-                if st.button("✔️ Marcar como Feito", key=f"done_{tid}"):
+                if st.button("✔️ Concluir", key=f"agenda_ok_{tid}", use_container_width=True):
                     c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
-                    conn.commit()
-                    st.rerun()
+                    conn.commit(); st.rerun()
         
         conn.close()
-        st.markdown('</div>', unsafe_allow_html=True)
 
     # ============================================================
     # SIDEBAR
@@ -883,6 +855,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

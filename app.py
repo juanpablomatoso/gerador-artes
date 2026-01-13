@@ -891,30 +891,6 @@ else:
         with t_pessoal:
             st.markdown("### 🏠 Agenda Pessoal")
             c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
-            itens_pess = c.fetchall()
-
-            if not itens_pess:
-                st.write("✨ Tudo organizado na vida pessoal.")
-            else:
-                # Criar fileiras de 4 quadradinhos (mais compactos para vida pessoal)
-                cols_p = st.columns(4)
-                for idx, (tid, data, t, d) in enumerate(itens_pess):
-                    dt_p = datetime.strptime(data, "%Y-%m-%d").date()
-                    with cols_p[idx % 4]:
-                        st.markdown(f"""
-                            <div style="background:#f9f5ff; padding:12px; border-radius:12px; border:1px solid #e0d5f5; text-align:center; min-height:100px; margin-bottom:10px;">
-                                <span style="color:#6f42c1; font-weight:bold; font-size:0.75rem;">🏠 {dt_p.strftime('%d/%m')}</span>
-                                <div style="font-weight:600; font-size:0.9rem; color:#333; margin-top:3px;">{t}</div>
-                            </div>
-                        """, unsafe_allow_html=True)
-                        if st.button("OK", key=f"ps_{tid}", use_container_width=True):
-                            c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
-                            conn.commit(); st.rerun()
-
-        # --- ABA 3: VIDA PESSOAL ---
-        with t_pessoal:
-            st.markdown("### 🏠 Agenda Pessoal")
-            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
             for tid, data, t, d in c.fetchall():
                 dt = datetime.strptime(data, "%Y-%m-%d").date()
                 st.markdown(f"""
@@ -955,6 +931,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

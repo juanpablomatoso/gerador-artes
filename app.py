@@ -609,7 +609,7 @@ else:
                             st.rerun()
 
         # ============================================================
-        # 📅 ABA AGENDA - CENTRAL ESTRATÉGICA (LIMPEZA AUTOMÁTICA)
+        # 📅 ABA AGENDA - CENTRAL ESTRATÉGICA (LAYOUT EM CARDS)
         # ============================================================
         with tab3:
             st.markdown('<p class="descricao-aba">Gestão Editorial: Pautas futuras e limpeza automática de itens concluídos.</p>', unsafe_allow_html=True)
@@ -622,7 +622,6 @@ else:
             hoje_str = hoje_dt.strftime("%Y-%m-%d")
 
             # --- 1) ROTINA DE LIMPEZA AUTOMÁTICA ---
-            # Remove itens CONCLUÍDOS que já passaram da data de hoje
             c.execute("DELETE FROM agenda_itens WHERE status = 'Concluído' AND data_ref < ?", (hoje_str,))
             conn.commit()
 
@@ -634,7 +633,7 @@ else:
                     
                     with col_input_1:
                         a_titulo = st.text_input("O que precisa ser feito?", placeholder="Ex: Cobertura da ExpoToledo")
-                        a_desc = st.text_area("Detalhes extras (opcional)", height=68, placeholder="Informações de contato, local ou pauta...")
+                        a_desc = st.text_area("Detalhes extras (opcional)", height=68)
                     
                     with col_input_2:
                         a_data = st.date_input("Data de Execução", value=hoje_dt, format="DD/MM/YYYY")
@@ -651,97 +650,83 @@ else:
                             conn.commit()
                             st.toast(f"Agendado para {a_data.strftime('%d/%m/%Y')}", icon="📅")
                             st.rerun()
-                        else:
-                            st.error("Por favor, preencha o título.")
 
             st.markdown("---")
             
-            # --- 3) FILTRO DE VISUALIZAÇÃO (Para ver o mês ou ano) ---
-            col_titulo, col_filtro = st.columns([2, 1])
-            with col_titulo:
+            # --- 3) FILTRO DE VISUALIZAÇÃO ---
+            col_t, col_f = st.columns([2, 1])
+            with col_t:
                 st.subheader("📋 Cronograma de Atividades")
-            with col_filtro:
+            with col_f:
                 opcao_filtro = st.selectbox(
                     "Ver período:",
                     ["Próximos 7 dias", "Próximos 15 dias", "Próximos 30 dias", "Tudo (Ano Inteiro)"],
-                    index=0
+                    index=0, key="filtro_juan"
                 )
 
-            # Define o limite de dias com base no filtro
-            dias_limite = 7
-            if "15" in opcao_filtro: dias_limite = 15
-            elif "30" in opcao_filtro: dias_limite = 30
-            elif "Tudo" in opcao_filtro: dias_limite = 365
-
+            dias_limite = {"7": 7, "15": 15, "30": 30, "Tudo": 365}[opcao_filtro.split()[1] if "Tudo" not in opcao_filtro else "Tudo"]
             data_limite_filtro = (hoje_dt + timedelta(days=dias_limite)).strftime("%Y-%m-%d")
 
-            # --- 4) BUSCA DE DADOS ---
-            c.execute(
-                """
+            # --- 4) BUSCA E EXIBIÇÃO EM CARDS (ESTILO BRAYAN) ---
+            c.execute("""
                 SELECT id, data_ref, titulo, descricao, status, criado_por 
                 FROM agenda_itens 
                 WHERE (data_ref BETWEEN ? AND ?) OR (status = 'Pendente' AND data_ref < ?)
-                ORDER BY 
-                    CASE WHEN status = 'Pendente' AND data_ref < ? THEN 1 
-                         WHEN status = 'Pendente' AND data_ref = ? THEN 2
-                         WHEN status = 'Pendente' THEN 3 
-                         ELSE 4 END, 
-                    data_ref ASC
-                """,
-                (hoje_str, data_limite_filtro, hoje_str, hoje_str, hoje_str)
-            )
+                ORDER BY status DESC, data_ref ASC
+            """, (hoje_str, data_limite_filtro, hoje_str))
+            
             itens = c.fetchall()
 
             if not itens:
-                st.info(f"Nenhum compromisso encontrado para o filtro: {opcao_filtro}")
+                st.info(f"Nenhum compromisso encontrado.")
             else:
-                for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
+                # Exibição em Grid de 3 colunas
+                cols_agenda = st.columns(3)
+                for idx, (tid, data_ref, titulo, descricao, status, criado_por) in enumerate(itens):
                     dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
-                    data_br = dt_obj.strftime("%d/%m/%Y")
                     
-                    if status == "Concluído":
-                        cor, tag, fundo = "#198754", "✅ CONCLUÍDO", "#f1fff6"
-                    elif dt_obj < hoje_dt:
-                        cor, tag, fundo = "#dc3545", "⛔ URGENTE / ATRASADO", "#fff5f5"
-                    elif dt_obj == hoje_dt:
-                        cor, tag, fundo = "#ffc107", "📌 PARA HOJE", "#fffdf5"
-                    else:
-                        cor, tag, fundo = "#0d6efd", "🗓️ AGENDADO", "#f3f7ff"
+                    # Definição de Cores conforme Status/Data
+                    if status == "Concluído": cor, fundo = "#198754", "#f1fff6"
+                    elif dt_obj < hoje_dt: cor, fundo = "#dc3545", "#fff5f5"
+                    elif dt_obj == hoje_dt: cor, fundo = "#ffc107", "#fffdf5"
+                    else: cor, fundo = "#0d6efd", "#f3f7ff"
 
-                    st.markdown(f"""
-                        <div style="background:{fundo}; padding:16px; border-radius:12px; border-left:10px solid {cor}; margin-bottom:12px; box-shadow: 0 2px 5px rgba(0,0,0,0.08);">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-weight:bold; color:#333; font-size:0.9rem;">{data_br} — {tag}</span>
-                                <span style="background:#eee; padding:2px 8px; border-radius:15px; font-size:0.7rem; color:#666;">RESP: {criado_por.upper()}</span>
+                    with cols_agenda[idx % 3]:
+                        # Card Visual
+                        st.markdown(f"""
+                            <div style="background:{fundo}; padding:15px; border-radius:15px; border-top:5px solid {cor}; box-shadow:0 4px 10px rgba(0,0,0,0.05); min-height:120px; margin-bottom:10px;">
+                                <div style="display:flex; justify-content:space-between; align-items:start;">
+                                    <b style="color:{cor}; font-size:0.8rem;">{dt_obj.strftime('%d/%m/%Y')}</b>
+                                    <span style="font-size:0.6rem; color:#888;">{criado_por.upper()}</span>
+                                </div>
+                                <div style="font-weight:bold; font-size:1rem; margin-top:5px; color:#222; line-height:1.1;">{titulo}</div>
                             </div>
-                            <div style="font-size:1.25rem; font-weight:800; margin-top:8px; color:#111; line-height:1.2;">{titulo}</div>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    if descricao:
-                        with st.expander("🔍 Ver detalhes da tarefa"):
-                            st.write(descricao)
-
-                    col_bt1, col_bt2, col_bt3, _ = st.columns([1, 1, 1, 3])
-                    with col_bt1:
-                        btn_label = "↩️ Reabrir" if status == "Concluído" else "✔️ Concluir"
-                        if st.button(btn_label, key=f"tg_{tid}", use_container_width=True):
-                            novo_st = "Pendente" if status == "Concluído" else "Concluído"
-                            c.execute("UPDATE agenda_itens SET status=? WHERE id=?", (novo_st, tid))
-                            conn.commit()
-                            st.rerun()
-                    with col_bt2:
-                        if st.button("🗑️ Excluir", key=f"del_{tid}", use_container_width=True):
-                            c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
-                            conn.commit()
-                            st.rerun()
-                    with col_bt3:
-                        if status == "Pendente" and dt_obj <= hoje_dt:
-                            if st.button("🕒 +1 Dia", key=f"mvr_{tid}", use_container_width=True):
-                                nova_data_adiada = dt_obj + timedelta(days=1)
-                                c.execute("UPDATE agenda_itens SET data_ref=? WHERE id=?", (nova_data_adiada.strftime("%Y-%m-%d"), tid))
-                                conn.commit()
-                                st.rerun()
+                        """, unsafe_allow_html=True)
+                        
+                        # Botões de Ação Alinhados
+                        b1, b2 = st.columns(2)
+                        with b1:
+                            btn_txt = "✔️ OK" if status == "Pendente" else "↩️ REABRIR"
+                            if st.button(btn_txt, key=f"btn_ok_{tid}", use_container_width=True):
+                                novo_st = "Concluído" if status == "Pendente" else "Pendente"
+                                c.execute("UPDATE agenda_itens SET status=? WHERE id=?", (novo_st, tid))
+                                conn.commit(); st.rerun()
+                        
+                        with b2:
+                            with st.popover("📝 EDITAR", use_container_width=True):
+                                with st.form(f"form_edit_j_{tid}"):
+                                    new_t = st.text_input("Título", value=titulo)
+                                    new_d = st.date_input("Data", value=dt_obj)
+                                    new_desc = st.text_area("Descrição", value=descricao if descricao else "")
+                                    
+                                    col_f1, col_f2 = st.columns(2)
+                                    if col_f1.form_submit_button("Salvar"):
+                                        c.execute("UPDATE agenda_itens SET titulo=?, data_ref=?, descricao=? WHERE id=?", 
+                                                 (new_t, new_d.strftime("%Y-%m-%d"), new_desc, tid))
+                                        conn.commit(); st.rerun()
+                                    if col_f2.form_submit_button("🗑️ Excluir"):
+                                        c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
+                                        conn.commit(); st.rerun()
             conn.close()
 
     else:
@@ -927,6 +912,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

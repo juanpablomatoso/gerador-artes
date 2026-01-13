@@ -609,7 +609,7 @@ else:
                             st.rerun()
 
         # ============================================================
-        # 📅 ABA AGENDA - FOCO EM VISUALIZAÇÃO (COMPACTA)
+        # 📅 ABA AGENDA - FOCO EM VISUALIZAÇÃO ULTRA-COMPACTA
         # ============================================================
         with tab3:
             conn = get_conn()
@@ -621,15 +621,15 @@ else:
             c.execute("DELETE FROM agenda_itens WHERE status = 'Concluído' AND data_ref < ?", (hoje_str,))
             conn.commit()
 
-            # 2) CABEÇALHO COM LANÇAMENTO EM POPOVER
+            # 2) CABEÇALHO COMPACTO
             col_tit, col_btn = st.columns([3, 1])
             with col_tit:
-                st.markdown("### 📋 Cronograma da Semana")
+                st.markdown("### 📋 Cronograma")
             with col_btn:
-                with st.popover("➕ AGENDAR NOVO", use_container_width=True):
-                    with st.form("form_novo_j", clear_on_submit=True):
+                with st.popover("➕ AGENDAR", use_container_width=True):
+                    with st.form("form_novo_v2", clear_on_submit=True):
                         ntit = st.text_input("O que fazer?")
-                        ndes = st.text_area("Observações/Detalhes")
+                        ndes = st.text_area("Observações")
                         ndat = st.date_input("Data", value=hoje_dt)
                         if st.form_submit_button("🚀 SALVAR", use_container_width=True):
                             if ntit:
@@ -638,7 +638,7 @@ else:
                                     (ndat.strftime("%Y-%m-%d"), ntit, ndes, "Pendente", st.session_state.perfil, agora))
                                 conn.commit(); st.rerun()
 
-            # 3) FILTRO
+            # 3) FILTRO DISCRETO
             opcao_filtro = st.selectbox("Período:", ["Próximos 7 dias", "Próximos 15 dias", "Próximos 30 dias", "Tudo"], label_visibility="collapsed")
             dias_map = {"7": 7, "15": 15, "30": 30, "Tudo": 365}
             dias_limite = dias_map.get(opcao_filtro.split()[1] if " " in opcao_filtro else "Tudo", 7)
@@ -660,41 +660,39 @@ else:
                     dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
                     dia_nome = dias_semana[dt_obj.weekday()]
                     
-                    # Estilo conforme status
                     if status == "Concluído": cor, fundo = "#198754", "#f1fff6"
                     elif dt_obj < hoje_dt: cor, fundo = "#dc3545", "#fff5f5"
                     elif dt_obj == hoje_dt: cor, fundo = "#ffc107", "#fffdf5"
                     else: cor, fundo = "#0d6efd", "#f3f7ff"
 
-                    # Trata a descrição para o card (limitando texto)
-                    desc_curta = ""
-                    if descricao:
-                        desc_curta = (descricao[:45] + '...') if len(descricao) > 45 else descricao
-
                     with cols[idx % 3]:
+                        # CARD DINÂMICO (Sem altura fixa)
+                        # Se não tem descrição, o bloco da descrição nem é renderizado
+                        html_desc = f'<div style="font-size:0.75rem; color:#555; margin-top:4px; font-style: italic;">{(descricao[:40] + "...") if len(descricao) > 40 else descricao}</div>' if descricao else ""
+                        
                         st.markdown(f"""
-                            <div style="background:{fundo}; padding:12px; border-radius:12px; border-top:5px solid {cor}; box-shadow:0 2px 8px rgba(0,0,0,0.05); min-height:135px; margin-bottom:10px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
-                                    <b style="color:{cor}; font-size:0.75rem;">{dt_obj.strftime('%d/%m')}</b>
-                                    <span style="font-size:0.6rem; color:#666; font-weight:bold;">{dia_nome.upper()}</span>
+                            <div style="background:{fundo}; padding:10px 12px; border-radius:10px; border-top:4px solid {cor}; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:8px;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
+                                    <b style="color:{cor}; font-size:0.7rem;">{dt_obj.strftime('%d/%m')}</b>
+                                    <span style="font-size:0.55rem; color:#888; font-weight:bold;">{dia_nome.upper()}</span>
                                 </div>
-                                <div style="font-weight:800; font-size:0.9rem; color:#111; text-transform: uppercase; line-height:1.2;">{titulo.upper()}</div>
-                                <div style="font-size:0.75rem; color:#555; margin-top:5px; font-style: italic;">{desc_curta}</div>
+                                <div style="font-weight:800; font-size:0.85rem; color:#111; text-transform: uppercase; line-height:1.1;">{titulo.upper()}</div>
+                                {html_desc}
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Linha de botões
-                        b1, b2, b3 = st.columns([1.2, 1, 0.8])
+                        # Botões em tamanho reduzido
+                        b1, b2, b3 = st.columns([1, 1, 0.7])
                         with b1:
-                            if st.button("✅ OK" if status == "Pendente" else "↩️", key=f"ok_{tid}", use_container_width=True):
+                            if st.button("✅" if status == "Pendente" else "↩️", key=f"ok_{tid}", use_container_width=True):
                                 c.execute("UPDATE agenda_itens SET status=? WHERE id=?", ("Concluído" if status == "Pendente" else "Pendente", tid))
                                 conn.commit(); st.rerun()
                         with b2:
-                            with st.popover("📝 EDIT", use_container_width=True):
+                            with st.popover("📝", use_container_width=True):
                                 with st.form(f"ed_{tid}"):
                                     nt = st.text_input("Título", value=titulo)
                                     nd = st.date_input("Data", value=dt_obj)
-                                    ns = st.text_area("Descrição", value=descricao if descricao else "")
+                                    ns = st.text_area("Obs", value=descricao if descricao else "")
                                     if st.form_submit_button("Salvar"):
                                         c.execute("UPDATE agenda_itens SET titulo=?, data_ref=?, descricao=? WHERE id=?", (nt, nd.strftime("%Y-%m-%d"), ns, tid))
                                         conn.commit(); st.rerun()
@@ -702,13 +700,11 @@ else:
                                         c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
                                         conn.commit(); st.rerun()
                         with b3:
-                            # Botão de Informação (Só aparece se tiver descrição)
                             if descricao:
                                 with st.popover("ℹ️", use_container_width=True):
-                                    st.markdown(f"**DETALHES DE {titulo.upper()}**")
                                     st.write(descricao)
                             else:
-                                st.button("ℹ️", key=f"no_desc_{tid}", disabled=True, use_container_width=True)
+                                st.button("ℹ️", key=f"no_d_{tid}", disabled=True, use_container_width=True)
             conn.close()
 
     else:
@@ -894,6 +890,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

@@ -12,7 +12,6 @@ import hashlib
 import hmac
 import binascii
 import re
-import pyperclip
 
 # ============================================================
 # 1) CONFIGURAÇÃO DA PÁGINA
@@ -491,7 +490,7 @@ else:
 
     if st.session_state.perfil == "juan":
         st.markdown('<div class="boas-vindas">Bem-vindo, Juan!</div>', unsafe_allow_html=True)
-        tab1, tab2, tab3, tab4 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA", "📲 RESUMO WHATSAPP"])
+        tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
 
         with tab1:
             st.markdown(
@@ -996,7 +995,6 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
-
 
 
 

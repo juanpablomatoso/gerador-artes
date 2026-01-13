@@ -490,7 +490,7 @@ else:
 
     if st.session_state.perfil == "juan":
         st.markdown('<div class="boas-vindas">Bem-vindo, Juan!</div>', unsafe_allow_html=True)
-        tab1, tab2, tab3, tab4 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA", "📱 WHATSAPP"])
+        tab1, tab2, tab3 = st.tabs(["🎨 GERADOR DE ARTES", "📝 FILA DO BRAYAN", "📅 AGENDA"])
 
         with tab1:
             st.markdown(
@@ -922,30 +922,6 @@ else:
                          WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' 
                          AND (data_ref < ? OR data_ref <= ?) 
                          ORDER BY data_ref ASC""", (hoje_str, dt_limp_str))
-
-            # NOVO: ABA WHATSAPP ADICIONADA AQUI DENTRO
-        with tab4:
-            st.subheader("📱 Gerador de Lista para WhatsApp")
-            st.info("Selecione as matérias abaixo para montar o resumo diário.")
-            noticias_zap = buscar_ultimas()
-            selecionadas = []
-            
-            for i, nz in enumerate(noticias_zap[:12]):
-                if st.checkbox(nz['t'], key=f"zap_{i}"):
-                    selecionadas.append(nz)
-            
-            if st.button("🚀 GERAR TEXTO PARA WHATSAPP", type="primary", use_container_width=True):
-                if selecionadas:
-                    hoje_br = (datetime.utcnow() - timedelta(hours=3)).strftime("%d/%m/%Y")
-                    texto_final = f"*🔵 DESTAQUES DESTAQUE TOLEDO - {hoje_br}*\n\n"
-                    for s in selecionadas:
-                        texto_final += f"🔹 *{s['t'].upper()}*\n🔗 {s['u']}\n\n"
-                    texto_final += "------------------------------------------\n"
-                    texto_final += "👉 *Siga nosso canal:* https://destaquetoledo.com.br/whatsapp"
-                    st.text_area("Copie o texto abaixo:", value=texto_final, height=300)
-                    st.success("Texto pronto! Agora é só copiar e colar no grupo.")
-                else:
-                    st.warning("Selecione ao menos uma notícia.")
             
             itens_pess = c.fetchall()
             if not itens_pess:
@@ -1019,11 +995,6 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
-
-
-
-
-
 
 
 

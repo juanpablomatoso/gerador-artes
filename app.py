@@ -428,8 +428,8 @@ if not st.session_state.autenticado:
     _, col2, _ = st.columns([1, 1.2, 1])
     
     with col2:
-        # Usando container com borda para dar aspecto de "card" de login
-        with st.container(border=True):
+        # Trocamos o container por form para habilitar o login com a tecla ENTER
+        with st.form("painel_login"):
             st.markdown("<h3 style='text-align: center; margin-top: 0;'>Acesso Restrito</h3>", unsafe_allow_html=True)
             
             if not AUTH_CONFIG_OK:
@@ -448,7 +448,10 @@ if not st.session_state.autenticado:
             
             st.write("") # Espaçador
             
-            if st.button("ENTRAR NO SISTEMA", use_container_width=True, type="primary"):
+            # Botão de submissão do formulário (detecta o Enter automaticamente)
+            entrar = st.form_submit_button("ENTRAR NO SISTEMA", use_container_width=True, type="primary")
+            
+            if entrar:
                 if u in ("juan", "brayan") and verify_password(s, AUTH_HASHES.get(u, "")):
                     st.session_state.autenticado = True
                     st.session_state.perfil = u
@@ -922,6 +925,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

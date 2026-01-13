@@ -799,22 +799,24 @@ else:
                     if obs:
                         with st.expander("📄 Ver Conteúdo"): st.write(obs)
 
-        # --- ABA 2: CRONOGRAMA TRABALHO (LÓGICA DE FILTRO AJUSTADA) ---
+        # --- ABA 2: CRONOGRAMA TRABALHO (CORRIGIDO PARA PUXAR TUDO) ---
         with t_agenda:
             col_tit, col_fil = st.columns([2, 1])
             with col_tit: st.markdown("### 📅 Cronograma de Trabalho")
             with col_fil: 
                 f_w = st.selectbox("Período:", ["7 dias", "15 dias", "30 dias", "Tudo"], key="f_work", label_visibility="collapsed")
             
+            # Define o limite de dias conforme o filtro
             d_lim = {"7 dias": 7, "15 dias": 15, "30 dias": 30, "Tudo": 9999}.get(f_w, 7)
             dt_lim_str = (hoje_dt + timedelta(days=d_lim)).strftime("%Y-%m-%d")
 
-            # BUSCA: Pendentes que estão dentro do prazo OU que já passaram da data (Atrasados)
+            # SQL CORRIGIDO: Puxa tudo que está atrasado (independente do filtro) OU dentro do limite de dias
             c.execute("""SELECT id, data_ref, titulo, descricao FROM agenda_itens 
                          WHERE status = 'Pendente' AND criado_por = 'brayan' 
-                         AND (data_ref <= ? OR data_ref < ?) ORDER BY data_ref ASC""", (dt_lim_str, hoje_str))
-            itens_work = c.fetchall()
+                         AND (data_ref < ? OR data_ref <= ?) 
+                         ORDER BY data_ref ASC""", (hoje_str, dt_lim_str))
             
+            itens_work = c.fetchall()
             if not itens_work:
                 st.write("✨ Nenhuma atividade de trabalho pendente.")
             else:
@@ -860,7 +862,7 @@ else:
                             else:
                                 st.button("ℹ️", key=f"no_dw_{tid}", disabled=True, use_container_width=True)
 
-        # --- ABA 3: VIDA PESSOAL (LÓGICA DE FILTRO AJUSTADA) ---
+        # --- ABA 3: VIDA PESSOAL (CORRIGIDO PARA PUXAR TUDO) ---
         with t_pessoal:
             col_titp, col_filp = st.columns([2, 1])
             with col_titp: st.markdown("### 🏠 Agenda Pessoal")
@@ -870,12 +872,13 @@ else:
             d_limp = {"7 dias": 7, "15 dias": 15, "30 dias": 30, "Tudo": 9999}.get(f_p, 7)
             dt_limp_str = (hoje_dt + timedelta(days=d_limp)).strftime("%Y-%m-%d")
 
-            # BUSCA: Pendentes que estão dentro do prazo OU que já passaram da data (Atrasados)
+            # SQL CORRIGIDO: Puxa tudo que está atrasado OU dentro do limite de dias
             c.execute("""SELECT id, data_ref, titulo, descricao FROM agenda_itens 
                          WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' 
-                         AND (data_ref <= ? OR data_ref < ?) ORDER BY data_ref ASC""", (dt_limp_str, hoje_str))
+                         AND (data_ref < ? OR data_ref <= ?) 
+                         ORDER BY data_ref ASC""", (hoje_str, dt_limp_str))
+            
             itens_pess = c.fetchall()
-
             if not itens_pess:
                 st.info("✨ Vida pessoal organizada no período.")
             else:
@@ -947,6 +950,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

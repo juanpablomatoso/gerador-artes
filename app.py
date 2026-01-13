@@ -517,55 +517,51 @@ else:
             with col_preview:
             url_f = st.text_input("Link da Matéria:", value=st.session_state.get("url_atual", ""))
 
-            # --- NOVA LÓGICA DE EDIÇÃO DE TEXTO ---
-            texto_para_arte = ""
+            # --- PARTE NOVA: CAMPO PARA VOCÊ EDITAR O TÍTULO ---
+            titulo_editado = ""
             if url_f:
-                # Busca o título automático apenas se o link mudar
-                dados_materia = extrair_dados_blog(url_f)
-                titulo_auto = dados_materia[0] if dados_materia else ""
+                # Puxa o título automático do site para você poder editar
+                dados_temp = extrair_dados_blog(url_f)
+                titulo_original = dados_temp[0] if dados_temp else ""
                 
-                # Cria uma caixa para você editar o título se quiser
-                texto_para_arte = st.text_area(
-                    "📝 Ajuste o título da arte (se precisar):", 
-                    value=titulo_auto,
-                    height=100,
-                    key="editor_titulo"
-                )
+                # Essa caixa permite que você mude o texto, dê espaços ou mude frases
+                titulo_editado = st.text_area("📝 Ajuste o título da arte se desejar:", value=titulo_original, height=100)
 
                 ca, cb = st.columns(2)
 
                 if ca.button("🖼️ GERAR FEED", use_container_width=True, type="primary"):
                     try:
-                        # Enviamos o 'texto_para_arte' (editado por você) para a função
-                        img = processar_artes_integrado(url_f, "FEED", titulo_personalizado=texto_para_arte)
+                        # Usamos o 'titulo_editado' em vez do automático
+                        img = processar_artes_integrado(url_f, "FEED", titulo_personalizado=titulo_editado)
                         st.image(img)
 
-                            buf = io.BytesIO()
-                            img.save(buf, "JPEG", quality=95, optimize=True)
-                            st.download_button(
-                                "📥 BAIXAR FEED",
-                                buf.getvalue(),
-                                "feed.jpg",
-                                use_container_width=True,
-                            )
-                        except Exception as e:
-                            st.error(f"Falha ao gerar FEED: {e}")
+                        buf = io.BytesIO()
+                        img.save(buf, "JPEG", quality=95, optimize=True)
+                        st.download_button(
+                            "📥 BAIXAR FEED",
+                            buf.getvalue(),
+                            "feed.jpg",
+                            use_container_width=True,
+                        )
+                    except Exception as e:
+                        st.error(f"Falha ao gerar FEED: {e}")
 
-                    if cb.button("📱 GERAR STORY", use_container_width=True):
-                        try:
-                            img = processar_artes_integrado(url_f, "STORY")
-                            st.image(img, width=280)
+                if cb.button("📱 GERAR STORY", use_container_width=True):
+                    try:
+                        # Usamos o 'titulo_editado' em vez do automático
+                        img = processar_artes_integrado(url_f, "STORY", titulo_personalizado=titulo_editado)
+                        st.image(img, width=280)
 
-                            buf = io.BytesIO()
-                            img.save(buf, "JPEG", quality=95, optimize=True)
-                            st.download_button(
-                                "📥 BAIXAR STORY",
-                                buf.getvalue(),
-                                "story.jpg",
-                                use_container_width=True,
-                            )
-                        except Exception as e:
-                            st.error(f"Falha ao gerar STORY: {e}")
+                        buf = io.BytesIO()
+                        img.save(buf, "JPEG", quality=95, optimize=True)
+                        st.download_button(
+                            "📥 BAIXAR STORY",
+                            buf.getvalue(),
+                            "story.jpg",
+                            use_container_width=True,
+                        )
+                    except Exception as e:
+                        st.error(f"Falha ao gerar STORY: {e}")
 
         with tab2:
             st.markdown(
@@ -999,6 +995,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

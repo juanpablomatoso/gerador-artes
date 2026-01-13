@@ -762,56 +762,89 @@ else:
         st.markdown("<br>", unsafe_allow_html=True)
         t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
-        # --- ABA 1: TRABALHO (CORREÇÃO DE CLIQUE ÚNICO) ---
+        # --- ABA 1: FLUXO OPERACIONAL (TECH STYLE & PULSE EFFECT) ---
         with t_work:
+            # CSS Otimizado para Cards Compactos e Animação de Urgência
+            st.markdown("""
+                <style>
+                @keyframes pulse-red {
+                    0% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); border-color: #ff4b4b; }
+                    70% { box-shadow: 0 0 0 10px rgba(255, 75, 75, 0); border-color: #ff4b4b; }
+                    100% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); border-color: #ff4b4b; }
+                }
+                .urgent-card {
+                    animation: pulse-red 2s infinite;
+                    border: 2px solid #ff4b4b !important;
+                    background: #fffafa !important;
+                }
+                .compact-card {
+                    background: white; border-radius: 12px; padding: 12px 16px;
+                    border: 1px solid #e2e8f0; margin-bottom: 4px;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+                }
+                .title-style {
+                    font-size: 1.05rem; font-weight: 700; color: #0f172a;
+                    margin: 6px 0; line-height: 1.3;
+                }
+                .id-badge {
+                    font-size: 0.7rem; color: #64748b; font-weight: 600;
+                    background: #f1f5f9; padding: 2px 8px; border-radius: 6px;
+                }
+                </style>
+            """, unsafe_allow_html=True)
+
             c.execute("""
                 SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status 
                 FROM pautas_trabalho WHERE status != 'Concluído' 
                 ORDER BY CASE WHEN prioridade = 'URGENTE' THEN 1 WHEN prioridade = 'Normal' THEN 2 ELSE 3 END ASC, id DESC
             """)
             items = c.fetchall()
+            
             if not items:
                 st.info("✨ Sistema limpo. Sem pautas pendentes.")
+            
             for id_p, tit, link, prio, hora, obs, stat in items:
-                cor_p = "#ff4b4b" if prio == "URGENTE" else ("#ffa500" if prio == "Programar" else "#007bff")
-                bg_p = "rgba(255, 75, 75, 0.1)" if prio == "URGENTE" else "rgba(0, 123, 255, 0.1)"
+                is_urgent = prio == "URGENTE"
+                cor_p = "#ff4b4b" if is_urgent else ("#ffa500" if prio == "Programar" else "#007bff")
+                bg_p = "rgba(255, 75, 75, 0.12)" if is_urgent else "rgba(0, 123, 255, 0.08)"
+                
+                # Define a classe CSS baseada na prioridade
+                card_class = "compact-card urgent-card" if is_urgent else "compact-card"
+                
                 st.markdown(f"""
-                    <div class="glass-card">
+                    <div class="{card_class}">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span class="prio-tag" style="background:{bg_p}; color:{cor_p};">{prio}</span>
-                            <span style="font-size:0.8rem; color:#999; font-weight:600;">📦 ID: {id_p} | 🕒 {hora}</span>
+                            <span class="prio-tag" style="background:{bg_p}; color:{cor_p}; font-size:0.65rem; border: 1px solid {cor_p}44;">{prio}</span>
+                            <span class="id-badge">ID: {id_p} • 🕒 {hora}</span>
                         </div>
-                        <h4 style="margin: 15px 0 10px 0; color:#111; font-size:1.25rem;">{tit}</h4>
+                        <div class="title-style">{tit}</div>
                     </div>
                 """, unsafe_allow_html=True)
                 
-                c1, c2, c3 = st.columns([1, 1, 2])
+                # Colunas de ação mais compactas
+                c1, c2, c3 = st.columns([0.8, 0.8, 2.4])
                 with c1:
-                    # Usamos uma chave única e removemos o excesso de lógica que trava o clique
                     if st.button("🚀 INICIAR", key=f"btn_go_{id_p}", use_container_width=True, type="primary"):
                         if link and "http" in link:
-                            # O segredo: Abrir o link e DEPOIS atualizar o banco
-                            st.components.v1.html(f"""
-                                <script>
-                                    window.open('{link}', '_blank');
-                                </script>
-                            """, height=0)
-                            
-                            # Atualiza status silenciosamente
+                            st.components.v1.html(f"<script>window.open('{link}', '_blank');</script>", height=0)
                             c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (id_p,))
                             conn.commit()
-                            # Aguarda um milissegundo antes do rerun para o JS processar a janela
                             st.rerun()
                         else:
                             st.error("Link inválido")
-                        
                 with c2:
                     if st.button("✅ FEITO", key=f"ok_{id_p}", use_container_width=True):
                         c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (id_p,))
                         conn.commit(); st.rerun()
                 with c3:
                     if obs:
-                        with st.expander("📄 Ver Conteúdo"): st.write(obs)
+                        with st.expander("📄 Ver Conteúdo"): 
+                            st.write(obs)
+                
+                # Espaçador entre cards
+                st.markdown("<div style='margin-bottom:12px;'></div>", unsafe_allow_html=True)
+
+        conn.close()
 
         # --- ABA 2: CRONOGRAMA TRABALHO (CORRIGIDO PARA PUXAR TUDO) ---
         with t_agenda:
@@ -964,6 +997,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

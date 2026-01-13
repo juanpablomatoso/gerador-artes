@@ -862,21 +862,54 @@ else:
                             st.write(obs)
                 st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-        # --- ABA 2: AGENDA TRABALHO ---
+        # --- ABA 2: CRONOGRAMA (TRABALHO) ---
         with t_agenda:
-            st.markdown("### 📅 Próximas Atividades de Trabalho")
+            st.markdown("### 📅 Cronograma de Trabalho")
             c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan' ORDER BY data_ref ASC")
-            for tid, data, t, d in c.fetchall():
-                dt = datetime.strptime(data, "%Y-%m-%d").date()
-                st.markdown(f"""
-                    <div style="background:white; padding:15px; border-radius:15px; border-left:6px solid #004a99; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
-                        <b style="color:#004a99;">{dt.strftime('%d/%m/%Y')}</b> — <b>{t}</b><br>
-                        <small style="color:#666;">{d if d else ''}</small>
-                    </div>
-                """, unsafe_allow_html=True)
-                if st.button("Concluir Tarefa", key=f"at_{tid}", use_container_width=True):
-                    c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
-                    conn.commit(); st.rerun()
+            itens_work = c.fetchall()
+            
+            if not itens_work:
+                st.write("✨ Nenhuma atividade pendente.")
+            else:
+                # Criar fileiras de 3 quadradinhos cada
+                cols = st.columns(3)
+                for idx, (tid, data, t, d) in enumerate(itens_work):
+                    dt = datetime.strptime(data, "%Y-%m-%d").date()
+                    with cols[idx % 3]: # Distribui entre as 3 colunas
+                        st.markdown(f"""
+                            <div style="background:white; padding:15px; border-radius:15px; border-top:5px solid #004a99; box-shadow:0 4px 10px rgba(0,0,0,0.05); min-height:120px; margin-bottom:10px;">
+                                <b style="color:#004a99; font-size:0.8rem;">{dt.strftime('%d/%m/%Y')}</b><br>
+                                <div style="font-weight:bold; font-size:1rem; margin-top:5px; color:#222;">{t}</div>
+                                <div style="font-size:0.8rem; color:#666; margin-top:3px;">{d[:50] + '...' if d and len(d)>50 else (d if d else '')}</div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("Concluir", key=f"at_{tid}", use_container_width=True):
+                            c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
+                            conn.commit(); st.rerun()
+
+        # --- ABA 3: VIDA PESSOAL ---
+        with t_pessoal:
+            st.markdown("### 🏠 Agenda Pessoal")
+            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
+            itens_pess = c.fetchall()
+
+            if not itens_pess:
+                st.write("✨ Tudo organizado na vida pessoal.")
+            else:
+                # Criar fileiras de 4 quadradinhos (mais compactos para vida pessoal)
+                cols_p = st.columns(4)
+                for idx, (tid, data, t, d) in enumerate(itens_pess):
+                    dt_p = datetime.strptime(data, "%Y-%m-%d").date()
+                    with cols_p[idx % 4]:
+                        st.markdown(f"""
+                            <div style="background:#f9f5ff; padding:12px; border-radius:12px; border:1px solid #e0d5f5; text-align:center; min-height:100px; margin-bottom:10px;">
+                                <span style="color:#6f42c1; font-weight:bold; font-size:0.75rem;">🏠 {dt_p.strftime('%d/%m')}</span>
+                                <div style="font-weight:600; font-size:0.9rem; color:#333; margin-top:3px;">{t}</div>
+                            </div>
+                        """, unsafe_allow_html=True)
+                        if st.button("OK", key=f"ps_{tid}", use_container_width=True):
+                            c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
+                            conn.commit(); st.rerun()
 
         # --- ABA 3: VIDA PESSOAL ---
         with t_pessoal:
@@ -922,6 +955,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

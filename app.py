@@ -760,6 +760,15 @@ else:
             st.markdown(f'<div class="kpi-card"><div class="kpi-num">{agenda_trabalho}</div><div class="kpi-lab">Tarefas Agenda</div></div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
+
+        # FILTRO DE PERÍODO (IGUAL AO SEU)
+        st.markdown("### 🔍 Filtrar Cronograma")
+        opcao_filtro = st.selectbox("Mostrar compromissos de:", ["Próximos 7 dias", "Próximos 15 dias", "Próximos 30 dias", "Todo o período"], key="filter_brayan")
+        
+        dias_map = {"7": 7, "15": 15, "30": 30, "Todo": 9999}
+        dias_limite = dias_map.get(opcao_filtro.split()[1] if " " in opcao_filtro else "Todo", 7)
+        data_limite_filtro = (hoje_dt + timedelta(days=dias_limite)).strftime("%Y-%m-%d")
+
         t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
         # --- ABA 1: TRABALHO (ORIGINAL PRESERVADA) ---
@@ -799,25 +808,32 @@ else:
                     if obs:
                         with st.expander("📄 Ver Conteúdo"): st.write(obs)
 
-        # --- ABA 2: CRONOGRAMA TRABALHO (ESTILO COMPACTO APLICADO) ---
+        # --- ABA 2: CRONOGRAMA TRABALHO (COM CORES E FILTRO) ---
         with t_agenda:
             st.markdown("### 📅 Cronograma de Trabalho")
-            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan' ORDER BY data_ref ASC")
+            c.execute("""SELECT id, data_ref, titulo, descricao FROM agenda_itens 
+                         WHERE status = 'Pendente' AND criado_por = 'brayan' 
+                         AND data_ref <= ? ORDER BY data_ref ASC""", (data_limite_filtro,))
             itens_work = c.fetchall()
             if not itens_work:
-                st.write("✨ Nenhuma atividade pendente.")
+                st.write("✨ Nenhuma atividade pendente no período.")
             else:
                 cols = st.columns(3)
                 for idx, (tid, data, t, d) in enumerate(itens_work):
                     dt = datetime.strptime(data, "%Y-%m-%d").date()
                     dia_n = dias_semana[dt.weekday()]
+                    
+                    # Lógica de Cores
+                    if dt < hoje_dt: cor, fundo = "#dc3545", "#fff5f5"      # Atrasado (Vermelho)
+                    elif dt == hoje_dt: cor, fundo = "#ffc107", "#fffdf5"   # Hoje (Amarelo)
+                    else: cor, fundo = "#004a99", "white"                   # Futuro (Azul)
+
                     with cols[idx % 3]:
-                        # Card Compacto
                         html_d = f'<div style="font-size:0.75rem; color:#555; margin-top:4px; font-style: italic;">{(d[:40] + "...") if len(d) > 40 else d}</div>' if d else ""
                         st.markdown(f"""
-                            <div style="background:white; padding:10px 12px; border-radius:12px; border-top:4px solid #004a99; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:8px;">
+                            <div style="background:{fundo}; padding:10px 12px; border-radius:12px; border-top:5px solid {cor}; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:8px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                                    <b style="color:#004a99; font-size:0.7rem;">{dt.strftime('%d/%m/%Y')}</b>
+                                    <b style="color:{cor}; font-size:0.7rem;">{dt.strftime('%d/%m/%Y')}</b>
                                     <span style="font-size:0.55rem; color:#888; font-weight:bold;">{dia_n.upper()}</span>
                                 </div>
                                 <div style="font-weight:800; font-size:0.85rem; color:#111; text-transform: uppercase; line-height:1.1;">{t.upper()}</div>
@@ -845,10 +861,12 @@ else:
                             else:
                                 st.button("ℹ️", key=f"no_dw_{tid}", disabled=True, use_container_width=True)
 
-        # --- ABA 3: VIDA PESSOAL (ESTILO COMPACTO APLICADO) ---
+        # --- ABA 3: VIDA PESSOAL (COM CORES E FILTRO) ---
         with t_pessoal:
             st.markdown("### 🏠 Agenda Pessoal")
-            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
+            c.execute("""SELECT id, data_ref, titulo, descricao FROM agenda_itens 
+                         WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' 
+                         AND data_ref <= ? ORDER BY data_ref ASC""", (data_limite_filtro,))
             itens_pess = c.fetchall()
             if not itens_pess:
                 st.info("✨ Tudo organizado na vida pessoal por enquanto.")
@@ -857,12 +875,18 @@ else:
                 for idx, (tid, data, t, d) in enumerate(itens_pess):
                     dt_p = datetime.strptime(data, "%Y-%m-%d").date()
                     dia_p = dias_semana[dt_p.weekday()]
+
+                    # Lógica de Cores
+                    if dt_p < hoje_dt: cor_p, fundo_p = "#dc3545", "#fff5f5"    # Atrasado
+                    elif dt_p == hoje_dt: cor_p, fundo_p = "#ffc107", "#fffdf5" # Hoje
+                    else: cor_p, fundo_p = "#6f42c1", "#f9f5ff"                # Futuro (Roxo)
+
                     with cols_p[idx % 3]:
                         html_dp = f'<div style="font-size:0.75rem; color:#555; margin-top:4px; font-style: italic;">{(d[:40] + "...") if len(d) > 40 else d}</div>' if d else ""
                         st.markdown(f"""
-                            <div style="background: #f9f5ff; padding: 10px 12px; border-radius: 12px; border-top: 5px solid #6f42c1; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom: 8px;">
+                            <div style="background:{fundo_p}; padding: 10px 12px; border-radius: 12px; border-top: 5px solid {cor_p}; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom: 8px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                                    <b style="color:#6f42c1; font-size:0.7rem;">{dt_p.strftime('%d/%m/%Y')}</b>
+                                    <b style="color:{cor_p}; font-size:0.7rem;">{dt_p.strftime('%d/%m/%Y')}</b>
                                     <span style="font-size:0.55rem; color:#888; font-weight:bold;">{dia_p.upper()}</span>
                                 </div>
                                 <div style="font-weight:800; font-size:0.85rem; color:#333; text-transform: uppercase; line-height:1.1;">{t.upper()}</div>
@@ -916,6 +940,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

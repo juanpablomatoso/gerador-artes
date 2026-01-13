@@ -754,7 +754,7 @@ else:
         hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
         hoje_str = hoje_dt.strftime("%Y-%m-%d")
 
-        # CSS Original
+        # CSS Original Preservado
         st.markdown("""
             <style>
                 .stApp { background-color: #f4f7fb; }
@@ -783,7 +783,7 @@ else:
             st.markdown(f"<h1 style='margin-bottom:0;'>Controle de Operações</h1>", unsafe_allow_html=True)
             st.markdown(f"<p style='color:#666; font-size:1.1rem;'>Bem-vindo, <b>Brayan</b>. Status do sistema: <span style='color:green;'>● Online</span></p>", unsafe_allow_html=True)
         
-        # KPIs - Apenas 2 colunas
+        # KPIs - Apenas 2 colunas (Fila e Agenda)
         c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status != 'Concluído'")
         pautas_ativas = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan'")
@@ -798,7 +798,7 @@ else:
         st.markdown("<br>", unsafe_allow_html=True)
         t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
-        # --- ABA 1: TRABALHO ---
+        # --- ABA 1: TRABALHO (ORIGINAL) ---
         with t_work:
             c.execute("""
                 SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status 
@@ -835,7 +835,7 @@ else:
                     if obs:
                         with st.expander("📄 Ver Conteúdo"): st.write(obs)
 
-        # --- ABA 2: CRONOGRAMA TRABALHO (BOTÕES ALINHADOS) ---
+        # --- ABA 2: CRONOGRAMA TRABALHO (BOTÕES LADO A LADO) ---
         with t_agenda:
             st.markdown("### 📅 Cronograma de Trabalho")
             c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan' ORDER BY data_ref ASC")
@@ -854,22 +854,21 @@ else:
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Botões na mesma linha
                         btn_c1, btn_c2 = st.columns(2)
                         with btn_c1:
                             if st.button("✅ OK", key=f"at_{tid}", use_container_width=True):
                                 c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
                                 conn.commit(); st.rerun()
                         with btn_c2:
-                            with st.popover("📝", use_container_width=True):
+                            with st.popover("📝 EDITAR", use_container_width=True):
                                 with st.form(f"f_ed_w_{tid}"):
-                                    nt = st.text_input("Título", value=t)
-                                    nd = st.date_input("Data", value=dt)
-                                    if st.form_submit_button("Salvar"):
+                                    nt = st.text_input("Novo Título", value=t)
+                                    nd = st.date_input("Nova Data", value=dt)
+                                    if st.form_submit_button("Salvar Alteração"):
                                         c.execute("UPDATE agenda_itens SET titulo=?, data_ref=? WHERE id=?", (nt, nd.strftime("%Y-%m-%d"), tid))
                                         conn.commit(); st.rerun()
 
-        # --- ABA 3: VIDA PESSOAL (BOTÕES ALINHADOS) ---
+        # --- ABA 3: VIDA PESSOAL (BOTÕES LADO A LADO) ---
         with t_pessoal:
             st.markdown("### 🏠 Agenda Pessoal")
             c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
@@ -888,18 +887,17 @@ else:
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Botões na mesma linha
                         btn_p1, btn_p2 = st.columns(2)
                         with btn_p1:
                             if st.button("OK", key=f"ps_ok_{tid}", use_container_width=True):
                                 c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
                                 conn.commit(); st.rerun()
                         with btn_p2:
-                            with st.popover("📝", use_container_width=True):
+                            with st.popover("📝 EDITAR", use_container_width=True):
                                 with st.form(f"f_ed_p_{tid}"):
-                                    nt = st.text_input("Título", value=t)
-                                    nd = st.date_input("Data", value=dt_p)
-                                    if st.form_submit_button("Salvar"):
+                                    nt = st.text_input("Novo Título", value=t)
+                                    nd = st.date_input("Nova Data", value=dt_p)
+                                    if st.form_submit_button("Salvar Alteração"):
                                         c.execute("UPDATE agenda_itens SET titulo=?, data_ref=? WHERE id=?", (nt, nd.strftime("%Y-%m-%d"), tid))
                                         conn.commit(); st.rerun()
 
@@ -929,6 +927,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

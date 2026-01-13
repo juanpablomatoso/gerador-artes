@@ -772,33 +772,35 @@ else:
 
         # --- ABA 1: MATÉRIAS PARA POSTAR (FILA DE TRABALHO) ---
         with tab_b1:
-            st.markdown('<p class="descricao-aba">Fila de postagem oficial do portal.</p>', unsafe_allow_html=True)
-            
-            c.execute("SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC")
-            pautas = c.fetchall()
+            # 1. BUSCAR DADOS PARA O MONITOR INTELIGENTE
+            c.execute("SELECT prioridade FROM pautas_trabalho WHERE status != 'Concluído'")
+            pautas_ativas = c.fetchall()
+            total_pautas = len(pautas_ativas)
+            tem_urgente = any(p[0] == "URGENTE" for p in pautas_ativas)
 
-            if not pautas:
-                st.info("Tudo limpo por aqui! Nenhuma matéria pendente na fila.")
+            # 2. LÓGICA DO MONITOR DE BOAS-VINDAS
+            if total_pautas == 0:
+                st.markdown("""
+                    <div style="background-color: #d4edda; padding: 15px; border-radius: 10px; border-left: 5px solid #28a745; margin-bottom: 20px;">
+                        <h4 style="color: #155724; margin: 0;">✅ Você está livre, Brayan!</h4>
+                        <p style="color: #155724; margin: 0;">Não há matérias pendentes para postar no momento.</p>
+                    </div>
+                """, unsafe_allow_html=True)
+            elif tem_urgente:
+                st.markdown("""
+                    <div style="background-color: #f8d7da; padding: 15px; border-radius: 10px; border-left: 5px solid #dc3545; margin-bottom: 20px; animation: blinker 1.5s linear infinite;">
+                        <h4 style="color: #721c24; margin: 0;">🚨 ATENÇÃO: MATÉRIA URGENTE!</h4>
+                        <p style="color: #721c24; margin: 0;">Priorize a pauta vermelha na fila abaixo.</p>
+                    </div>
+                    <style> @keyframes blinker { 50% { opacity: 0.6; } } </style>
+                """, unsafe_allow_html=True)
             else:
-                for p in pautas:
-                    pid, p_titulo, p_link, p_prioridade, p_hora, p_texto, p_status = p
-                    
-                    if p_status == "Postando":
-                        cor_borda, fundo_card, tag_txt = "#fd7e14", "#fff4e6", "⚡ VOCÊ ESTÁ POSTANDO AGORA"
-                    else:
-                        cor_borda = "#dc3545" if p_prioridade == "URGENTE" else "#004a99"
-                        fundo_card = "#fff5f5" if p_prioridade == "URGENTE" else "white"
-                        tag_txt = f"🕒 ENVIADO ÀS: {p_hora}"
-
-                    st.markdown(f"""
-                        <div style="background:{fundo_card}; padding:20px; border-radius:12px; border-left:8px solid {cor_borda}; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:15px;">
-                            <div style="display:flex; justify-content:space-between; align-items:center;">
-                                <span style="font-size:0.8rem; font-weight:bold; color:{cor_borda};">{tag_txt}</span>
-                                <span style="background:{cor_borda}; color:white; padding:2px 10px; border-radius:10px; font-size:0.7rem;">{p_prioridade.upper()}</span>
-                            </div>
-                            <h4 style="margin:10px 0; color:#111;">{p_titulo}</h4>
-                        </div>
-                    """, unsafe_allow_html=True)
+                st.markdown(f"""
+                    <div style="background-color: #e7f3ff; padding: 15px; border-radius: 10px; border-left: 5px solid #004a99; margin-bottom: 20px;">
+                        <h4 style="color: #004085; margin: 0;">📅 Fila de Trabalho</h4>
+                        <p style="color: #004085; margin: 0;">Você tem <b>{total_pautas}</b> matérias para postar hoje. Bom trabalho!</p>
+                    </div>
+                """, unsafe_allow_html=True)
                     
                     if p_texto:
                         with st.expander("📄 VER TEXTO / RELEASE PARA COPIAR", expanded=True):
@@ -929,6 +931,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

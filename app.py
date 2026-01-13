@@ -609,7 +609,7 @@ else:
                             st.rerun()
 
         # ============================================================
-        # 📅 ABA AGENDA - FOCO EM VISUALIZAÇÃO ULTRA-COMPACTA
+        # 📅 ABA AGENDA - PADRÃO BRASILEIRO EM TUDO
         # ============================================================
         with tab3:
             conn = get_conn()
@@ -628,9 +628,11 @@ else:
             with col_btn:
                 with st.popover("➕ AGENDAR", use_container_width=True):
                     with st.form("form_novo_v2", clear_on_submit=True):
+                        st.markdown("##### Novo Compromisso")
                         ntit = st.text_input("O que fazer?")
                         ndes = st.text_area("Observações")
-                        ndat = st.date_input("Data", value=hoje_dt)
+                        # PADRÃO BR AQUI
+                        ndat = st.date_input("Data", value=hoje_dt, format="DD/MM/YYYY")
                         if st.form_submit_button("🚀 SALVAR", use_container_width=True):
                             if ntit:
                                 agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
@@ -638,7 +640,7 @@ else:
                                     (ndat.strftime("%Y-%m-%d"), ntit, ndes, "Pendente", st.session_state.perfil, agora))
                                 conn.commit(); st.rerun()
 
-            # 3) FILTRO DISCRETO
+            # 3) FILTRO
             opcao_filtro = st.selectbox("Período:", ["Próximos 7 dias", "Próximos 15 dias", "Próximos 30 dias", "Tudo"], label_visibility="collapsed")
             dias_map = {"7": 7, "15": 15, "30": 30, "Tudo": 365}
             dias_limite = dias_map.get(opcao_filtro.split()[1] if " " in opcao_filtro else "Tudo", 7)
@@ -666,14 +668,12 @@ else:
                     else: cor, fundo = "#0d6efd", "#f3f7ff"
 
                     with cols[idx % 3]:
-                        # CARD DINÂMICO (Sem altura fixa)
-                        # Se não tem descrição, o bloco da descrição nem é renderizado
                         html_desc = f'<div style="font-size:0.75rem; color:#555; margin-top:4px; font-style: italic;">{(descricao[:40] + "...") if len(descricao) > 40 else descricao}</div>' if descricao else ""
                         
                         st.markdown(f"""
                             <div style="background:{fundo}; padding:10px 12px; border-radius:10px; border-top:4px solid {cor}; box-shadow:0 2px 5px rgba(0,0,0,0.05); margin-bottom:8px;">
                                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:2px;">
-                                    <b style="color:{cor}; font-size:0.7rem;">{dt_obj.strftime('%d/%m')}</b>
+                                    <b style="color:{cor}; font-size:0.7rem;">{dt_obj.strftime('%d/%m/%Y')}</b>
                                     <span style="font-size:0.55rem; color:#888; font-weight:bold;">{dia_nome.upper()}</span>
                                 </div>
                                 <div style="font-weight:800; font-size:0.85rem; color:#111; text-transform: uppercase; line-height:1.1;">{titulo.upper()}</div>
@@ -681,7 +681,6 @@ else:
                             </div>
                         """, unsafe_allow_html=True)
                         
-                        # Botões em tamanho reduzido
                         b1, b2, b3 = st.columns([1, 1, 0.7])
                         with b1:
                             if st.button("✅" if status == "Pendente" else "↩️", key=f"ok_{tid}", use_container_width=True):
@@ -690,8 +689,9 @@ else:
                         with b2:
                             with st.popover("📝", use_container_width=True):
                                 with st.form(f"ed_{tid}"):
-                                    nt = st.text_input("Título", value=titulo)
-                                    nd = st.date_input("Data", value=dt_obj)
+                                    nt = st.text_input("Título", value=titulo.upper())
+                                    # CORREÇÃO DO PADRÃO DE DATA NO EDITAR AQUI
+                                    nd = st.date_input("Data", value=dt_obj, format="DD/MM/YYYY")
                                     ns = st.text_area("Obs", value=descricao if descricao else "")
                                     if st.form_submit_button("Salvar"):
                                         c.execute("UPDATE agenda_itens SET titulo=?, data_ref=?, descricao=? WHERE id=?", (nt, nd.strftime("%Y-%m-%d"), ns, tid))
@@ -890,6 +890,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

@@ -746,7 +746,7 @@ else:
 
     else:
         # ============================================================
-        # BRAYAN OS - DASHBOARD EDITION (MODERNO & TECNOLÓGICO)
+        # BRAYAN OS - DASHBOARD PREMIUM (TECH STYLE)
         # ============================================================
         
         conn = get_conn()
@@ -754,145 +754,163 @@ else:
         hoje_dt = (datetime.utcnow() - timedelta(hours=3)).date()
         hoje_str = hoje_dt.strftime("%Y-%m-%d")
 
-        # CSS Avançado para o Dashboard
+        # CSS Avançado: Efeito Glassmorphism e Cards Modernos
         st.markdown("""
             <style>
-                .main { background-color: #f0f2f6; }
-                /* Estilo dos Cards de Status */
-                .stat-card {
-                    background: white; padding: 20px; border-radius: 20px;
-                    box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center;
-                    border: 1px solid #eef0f3;
-                }
-                .stat-val { font-size: 1.8rem; font-weight: 800; color: #004a99; }
-                .stat-label { font-size: 0.8rem; color: #6c757d; text-transform: uppercase; letter-spacing: 1px; }
+                /* Background geral mais suave */
+                .stApp { background-color: #f4f7fb; }
                 
-                /* Grid de Trabalho */
-                .work-card {
-                    background: white; border-radius: 22px; padding: 20px;
-                    margin-bottom: 15px; border: 1px solid #eef0f3;
-                    transition: transform 0.2s ease;
+                /* Cards de KPI (Números do topo) */
+                .kpi-card {
+                    background: white;
+                    padding: 25px;
+                    border-radius: 24px;
+                    box-shadow: 0 10px 30px rgba(0, 74, 153, 0.05);
+                    text-align: center;
+                    border: 1px solid #ffffff;
                 }
-                .work-card:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-                
-                .priority-tag {
-                    padding: 4px 12px; border-radius: 8px; font-size: 0.7rem; font-weight: 700;
+                .kpi-num { font-size: 2.2rem; font-weight: 800; color: #004a99; margin-bottom: 5px; }
+                .kpi-lab { font-size: 0.85rem; color: #8898aa; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+
+                /* Cards de Trabalho (Grid) */
+                .glass-card {
+                    background: white;
+                    border-radius: 20px;
+                    padding: 20px;
+                    border: 1px solid #e9ecef;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+                    margin-bottom: 15px;
                 }
-                .btn-glass {
-                    background: rgba(0, 74, 153, 0.1); color: #004a99; border: none;
-                    padding: 8px 15px; border-radius: 10px; font-weight: 600;
+                .prio-tag {
+                    padding: 5px 14px;
+                    border-radius: 10px;
+                    font-size: 0.7rem;
+                    font-weight: 800;
+                    text-transform: uppercase;
                 }
             </style>
         """, unsafe_allow_html=True)
 
-        # HEADER ESTILO APP
+        # HEADER DINÂMICO
         col_h1, col_h2 = st.columns([2, 1])
         with col_h1:
-            st.title("🚀 Central de Comando")
-            st.write(f"Bem-vindo de volta, **Brayan**. Hoje é {hoje_dt.strftime('%d de %B')}")
+            st.markdown(f"<h1 style='margin-bottom:0;'>Controle de Operações</h1>", unsafe_allow_html=True)
+            st.markdown(f"<p style='color:#666; font-size:1.1rem;'>Bem-vindo, <b>Brayan</b>. Status do sistema: <span style='color:green;'>● Online</span></p>", unsafe_allow_html=True)
         
-        # INDICADORES RÁPIDOS (KPIs)
-        c.execute("SELECT COUNT(*) FROM pautas_trabal_pautas_trabalho WHERE status != 'Concluído'")
-        total_pautas = c.fetchone()[0]
+        # CÁLCULO DE DADOS PARA OS INDICADORES
+        c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status != 'Concluído'")
+        pautas_ativas = c.fetchone()[0]
         c.execute("SELECT COUNT(*) FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan'")
-        total_agenda = c.fetchone()[0]
+        agenda_trabalho = c.fetchone()[0]
+        c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Concluído' AND data_envio LIKE ?", (f"{hoje_str}%",))
+        concluidas_hoje = c.fetchone()[0]
 
-        kpi1, kpi2, kpi3 = st.columns(3)
-        with kpi1:
-            st.markdown(f'<div class="stat-card"><div class="stat-val">{total_pautas}</div><div class="stat-label">Pautas na Fila</div></div>', unsafe_allow_html=True)
-        with kpi2:
-            st.markdown(f'<div class="stat-card"><div class="stat-val">{total_agenda}</div><div class="stat-label">Tarefas Agenda</div></div>', unsafe_allow_html=True)
-        with kpi3:
-            st.markdown(f'<div class="stat-card"><div class="stat-val">Online</div><div class="stat-label">Status Sistema</div></div>', unsafe_allow_html=True)
+        # LINHA DE INDICADORES (KPIs)
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            st.markdown(f'<div class="kpi-card"><div class="kpi-num">{pautas_ativas}</div><div class="kpi-lab">Fila de Postagem</div></div>', unsafe_allow_html=True)
+        with k2:
+            st.markdown(f'<div class="kpi-card"><div class="kpi-num">{agenda_trabalho}</div><div class="kpi-lab">Tarefas Agenda</div></div>', unsafe_allow_html=True)
+        with k3:
+            st.markdown(f'<div class="kpi-card"><div class="kpi-num">{concluidas_hoje}</div><div class="kpi-lab">Feitas Hoje</div></div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
 
-        # NAVEGAÇÃO EM TABS ESTILO DASHBOARD
-        tab_work, tab_calendar, tab_add = st.tabs(["⚡ FLUXO DE TRABALHO", "🗓️ CRONOGRAMA", "➕ NOVO REGISTRO"])
+        # NAVEGAÇÃO POR TABS ESTILO MODERNO
+        t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
-        # --- ABA 1: FLUXO DE TRABALHO (Cards Modernos) ---
-        with tab_work:
+        # --- ABA 1: TRABALHO ---
+        with t_work:
             c.execute("""
-                SELECT id, titulo, prioridade, data_envio, status, link_ref, observacao 
+                SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status 
                 FROM pautas_trabalho WHERE status != 'Concluído' 
-                ORDER BY CASE WHEN prioridade = 'URGENTE' THEN 1 WHEN prioridade = 'Normal' THEN 2 ELSE 3 END ASC
+                ORDER BY CASE WHEN prioridade = 'URGENTE' THEN 1 WHEN prioridade = 'Normal' THEN 2 ELSE 3 END ASC, id DESC
             """)
             items = c.fetchall()
 
             if not items:
-                st.info("Sistema limpo. Nenhuma pendência para agora.")
+                st.info("✨ Sistema limpo. Sem pautas pendentes.")
             
-            for id_p, tit, prio, hora, stat, link, obs in items:
-                cor_prio = "#ff4b4b" if prio == "URGENTE" else ("#ffa500" if prio == "Programar" else "#007bff")
-                bg_prio = "rgba(255, 75, 75, 0.1)" if prio == "URGENTE" else "rgba(0, 123, 255, 0.1)"
+            for id_p, tit, link, prio, hora, obs, stat in items:
+                cor_p = "#ff4b4b" if prio == "URGENTE" else ("#ffa500" if prio == "Programar" else "#007bff")
+                bg_p = "rgba(255, 75, 75, 0.1)" if prio == "URGENTE" else "rgba(0, 123, 255, 0.1)"
                 
-                with st.container():
-                    st.markdown(f"""
-                        <div class="work-card">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <span class="priority-tag" style="background: {bg_prio}; color: {cor_prio};">{prio}</span>
-                                <span style="font-size: 0.8rem; color: #999;">{hora}</span>
-                            </div>
-                            <h4 style="margin: 15px 0 5px 0;">{tit}</h4>
-                            <p style="color: #666; font-size: 0.9rem;">{obs[:100] + '...' if obs else 'Sem observações'}</p>
+                st.markdown(f"""
+                    <div class="glass-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="prio-tag" style="background:{bg_p}; color:{cor_p};">{prio}</span>
+                            <span style="font-size:0.8rem; color:#999; font-weight:600;">📦 ID: {id_p} | 🕒 {hora}</span>
                         </div>
-                    """, unsafe_allow_html=True)
-                    
-                    c1, c2, c3 = st.columns([1, 1, 2])
-                    with c1:
-                        if st.button("🚀 Iniciar", key=f"go_{id_p}", use_container_width=True, type="primary"):
-                            c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (id_p,))
-                            conn.commit(); st.rerun()
-                    with c2:
-                        if st.button("✅ Feito", key=f"ok_{id_p}", use_container_width=True):
-                            c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (id_p,))
-                            conn.commit(); st.rerun()
-                    with c3:
-                        if obs:
-                            with st.expander("Ver Conteúdo"):
-                                st.code(obs)
-                st.markdown("<br>", unsafe_allow_html=True)
+                        <h4 style="margin: 15px 0 10px 0; color:#111; font-size:1.25rem;">{tit}</h4>
+                    </div>
+                """, unsafe_allow_html=True)
 
-        # --- ABA 2: CRONOGRAMA (Visual Clean) ---
-        with tab_calendar:
-            col_t, col_p = st.columns(2)
-            
-            with col_t:
-                st.markdown("#### 📺 Trabalho")
-                c.execute("SELECT id, data_ref, titulo FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan' ORDER BY data_ref ASC")
-                for tid, data, t in c.fetchall():
-                    st.markdown(f"**{datetime.strptime(data, '%Y-%m-%d').strftime('%d/%m')}** — {t}")
-                    if st.button("Concluir", key=f"at_{tid}"):
-                        c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
+                c1, c2, c3 = st.columns([1, 1, 2])
+                with c1:
+                    if st.button("🚀 INICIAR", key=f"go_{id_p}", use_container_width=True, type="primary"):
+                        c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (id_p,))
+                        conn.commit()
+                        if link and "http" in link: st.components.v1.html(f"<script>window.open('{link}')</script>", height=0)
+                        st.rerun()
+                with c2:
+                    if st.button("✅ FEITO", key=f"ok_{id_p}", use_container_width=True):
+                        c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (id_p,))
                         conn.commit(); st.rerun()
+                with c3:
+                    if obs:
+                        with st.expander("📄 Ver Conteúdo/Release"):
+                            st.write(obs)
+                st.markdown("<div style='margin-bottom:20px;'></div>", unsafe_allow_html=True)
 
-            with col_p:
-                st.markdown("#### 🏠 Pessoal")
-                c.execute("SELECT id, data_ref, titulo FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
-                for tid, data, t in c.fetchall():
-                    st.markdown(f"**{datetime.strptime(data, '%Y-%m-%d').strftime('%d/%m')}** — {t}")
-                    if st.button("OK", key=f"ps_{tid}"):
-                        c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
-                        conn.commit(); st.rerun()
+        # --- ABA 2: AGENDA TRABALHO ---
+        with t_agenda:
+            st.markdown("### 📅 Próximas Atividades de Trabalho")
+            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan' ORDER BY data_ref ASC")
+            for tid, data, t, d in c.fetchall():
+                dt = datetime.strptime(data, "%Y-%m-%d").date()
+                st.markdown(f"""
+                    <div style="background:white; padding:15px; border-radius:15px; border-left:6px solid #004a99; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                        <b style="color:#004a99;">{dt.strftime('%d/%m/%Y')}</b> — <b>{t}</b><br>
+                        <small style="color:#666;">{d if d else ''}</small>
+                    </div>
+                """, unsafe_allow_html=True)
+                if st.button("Concluir Tarefa", key=f"at_{tid}", use_container_width=True):
+                    c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
+                    conn.commit(); st.rerun()
 
-        # --- ABA 3: NOVO REGISTRO (Centralizado e Moderno) ---
-        with tab_add:
-            st.markdown("### Criar nova entrada")
-            tipo_add = st.radio("Onde quer adicionar?", ["Agenda de Trabalho", "Vida Pessoal"], horizontal=True)
+        # --- ABA 3: VIDA PESSOAL ---
+        with t_pessoal:
+            st.markdown("### 🏠 Agenda Pessoal")
+            c.execute("SELECT id, data_ref, titulo, descricao FROM agenda_itens WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' ORDER BY data_ref ASC")
+            for tid, data, t, d in c.fetchall():
+                dt = datetime.strptime(data, "%Y-%m-%d").date()
+                st.markdown(f"""
+                    <div style="background:white; padding:15px; border-radius:15px; border-left:6px solid #6f42c1; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                        <b style="color:#6f42c1;">{dt.strftime('%d/%m/%Y')}</b> — <b>{t}</b><br>
+                        <small style="color:#666;">{d if d else ''}</small>
+                    </div>
+                """, unsafe_allow_html=True)
+                if st.button("Finalizado", key=f"ps_{tid}", use_container_width=True):
+                    c.execute("UPDATE agenda_itens SET status='Concluído' WHERE id=?", (tid,))
+                    conn.commit(); st.rerun()
+
+        # --- ABA 4: NOVO (CADASTRO) ---
+        with t_add:
+            st.markdown("### ➕ Nova Entrada no Dashboard")
+            tipo = st.segmented_control("Onde cadastrar?", ["Trabalho", "Vida Pessoal"], default="Trabalho")
             
-            with st.container():
-                with st.form("new_entry_form"):
-                    titulo = st.text_input("Título do compromisso")
-                    desc = st.text_area("Descrição (opcional)")
-                    data_sel = st.date_input("Data", value=hoje_dt, format="DD/MM/YYYY")
-                    
-                    if st.form_submit_button("⚡ SALVAR NO DASHBOARD", use_container_width=True):
-                        if titulo:
-                            autor = "brayan" if tipo_add == "Agenda de Trabalho" else "brayan_pessoal"
-                            agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-                            c.execute("INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
-                                     (data_sel.strftime("%Y-%m-%d"), titulo, desc, "Pendente", autor, agora))
-                            conn.commit(); st.success("Adicionado!"); st.rerun()
+            with st.form("form_novo_dash", clear_on_submit=True):
+                v_tit = st.text_input("Título / O que fazer?")
+                v_des = st.text_area("Notas extras (opcional)")
+                v_dat = st.date_input("Data", value=hoje_dt, format="DD/MM/YYYY")
+                
+                if st.form_submit_button("🚀 SALVAR NO SISTEMA", use_container_width=True):
+                    if v_tit:
+                        autor = "brayan" if tipo == "Trabalho" else "brayan_pessoal"
+                        agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
+                        c.execute("INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
+                                 (v_dat.strftime("%Y-%m-%d"), v_tit, v_des, "Pendente", autor, agora))
+                        conn.commit(); st.success("Registrado com sucesso!"); st.rerun()
 
         conn.close()
 
@@ -904,6 +922,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

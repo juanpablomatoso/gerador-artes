@@ -762,7 +762,7 @@ else:
         st.markdown("<br>", unsafe_allow_html=True)
         t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
-        # --- ABA 1: TRABALHO (ORIGINAL PRESERVADA) ---
+        # --- ABA 1: TRABALHO (CORREÇÃO DE ABERTURA DE LINK) ---
         with t_work:
             c.execute("""
                 SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status 
@@ -784,13 +784,30 @@ else:
                         <h4 style="margin: 15px 0 10px 0; color:#111; font-size:1.25rem;">{tit}</h4>
                     </div>
                 """, unsafe_allow_html=True)
+                
                 c1, c2, c3 = st.columns([1, 1, 2])
                 with c1:
+                    # Melhoria no botão de Iniciar
                     if st.button("🚀 INICIAR", key=f"go_{id_p}", use_container_width=True, type="primary"):
                         c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (id_p,))
                         conn.commit()
-                        if link and "http" in link: st.components.v1.html(f"<script>window.open('{link}')</script>", height=0)
+                        
+                        if link and "http" in link:
+                            # Script de abertura mais robusto
+                            st.components.v1.html(f"""
+                                <script>
+                                    var win = window.open('{link}', '_blank');
+                                    if(!win || win.closed || typeof win.closed=='undefined') {{ 
+                                        alert('O navegador bloqueou o link! Por favor, autorize pop-ups para este site.');
+                                    }}
+                                </script>
+                            """, height=0)
+                            st.success(f"Abrindo: {tit}")
+                        else:
+                            st.warning("Link não encontrado ou inválido.")
+                        
                         st.rerun()
+                        
                 with c2:
                     if st.button("✅ FEITO", key=f"ok_{id_p}", use_container_width=True):
                         c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (id_p,))
@@ -950,6 +967,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

@@ -805,25 +805,29 @@ else:
                             st.text_area("Conteúdo da Matéria:", value=p_texto, height=250, key=f"text_{pid}")
 
                     col_b1, col_b2 = st.columns(2)
+                    
                     with col_b1:
                         if p_status != "Postando":
-                            # O NOVO BOTÃO INTEGRADO
                             if st.button(f"🚀 Começar a Postar", key=f"start_{pid}", use_container_width=True, type="primary"):
-                                # 1. Atualiza o status no banco
                                 c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (pid,))
                                 conn.commit()
                                 
-                                # 2. Abre o link automaticamente se ele existir
-                                if p_link and p_link != "Sem link":
+                                # SÓ ABRE SE TIVER LINK VÁLIDO
+                                if p_link and p_link not in ["Sem link", "", "http://", "https://"]:
                                     js = f"window.open('{p_link}')"
                                     st.components.v1.html(f"<script>{js}</script>", height=0)
                                 
                                 st.rerun()
                         else:
-                            st.button("🚧 Em andamento...", disabled=True, key=f"act_{pid}", use_container_width=True)
+                            # BOTÃO DE CANCELAR CASO ELE TENHA CLICADO ERRADO
+                            if st.button("↩️ Cancelar / Voltar Fila", key=f"cancel_{pid}", use_container_width=True):
+                                c.execute("UPDATE pautas_trabalho SET status='Pendente' WHERE id=?", (pid,))
+                                conn.commit()
+                                st.rerun()
                     
                     with col_b2:
-                        if st.button(f"✅ Finalizado", key=f"postado_{pid}", use_container_width=True):
+                        # O botão Finalizado só funciona ou ganha destaque se ele já começou
+                        if st.button(f"✅ Finalizado", key=f"postado_{pid}", use_container_width=True, type="secondary" if p_status != "Postando" else "primary"):
                             c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
                             conn.commit()
                             st.rerun()
@@ -925,6 +929,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

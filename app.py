@@ -760,15 +760,6 @@ else:
             st.markdown(f'<div class="kpi-card"><div class="kpi-num">{agenda_trabalho}</div><div class="kpi-lab">Tarefas Agenda</div></div>', unsafe_allow_html=True)
 
         st.markdown("<br>", unsafe_allow_html=True)
-
-        # FILTRO DE PERÍODO (IGUAL AO SEU)
-        st.markdown("### 🔍 Filtrar Cronograma")
-        opcao_filtro = st.selectbox("Mostrar compromissos de:", ["Próximos 7 dias", "Próximos 15 dias", "Próximos 30 dias", "Todo o período"], key="filter_brayan")
-        
-        dias_map = {"7": 7, "15": 15, "30": 30, "Todo": 9999}
-        dias_limite = dias_map.get(opcao_filtro.split()[1] if " " in opcao_filtro else "Todo", 7)
-        data_limite_filtro = (hoje_dt + timedelta(days=dias_limite)).strftime("%Y-%m-%d")
-
         t_work, t_agenda, t_pessoal, t_add = st.tabs(["🚀 FLUXO OPERACIONAL", "📅 CRONOGRAMA", "🏠 VIDA PESSOAL", "➕ NOVO"])
 
         # --- ABA 1: TRABALHO (ORIGINAL PRESERVADA) ---
@@ -808,25 +799,32 @@ else:
                     if obs:
                         with st.expander("📄 Ver Conteúdo"): st.write(obs)
 
-        # --- ABA 2: CRONOGRAMA TRABALHO (COM CORES E FILTRO) ---
+        # --- ABA 2: CRONOGRAMA TRABALHO (COM FILTRO DENTRO DA ABA E CORES) ---
         with t_agenda:
-            st.markdown("### 📅 Cronograma de Trabalho")
+            col_tit, col_fil = st.columns([2, 1])
+            with col_tit: st.markdown("### 📅 Cronograma de Trabalho")
+            with col_fil: 
+                f_w = st.selectbox("Período:", ["7 dias", "15 dias", "30 dias", "Tudo"], key="f_work", label_visibility="collapsed")
+            
+            d_lim = {"7 dias": 7, "15 dias": 15, "30 dias": 30, "Tudo": 9999}.get(f_w, 7)
+            dt_lim_str = (hoje_dt + timedelta(days=d_lim)).strftime("%Y-%m-%d")
+
             c.execute("""SELECT id, data_ref, titulo, descricao FROM agenda_itens 
                          WHERE status = 'Pendente' AND criado_por = 'brayan' 
-                         AND data_ref <= ? ORDER BY data_ref ASC""", (data_limite_filtro,))
+                         AND data_ref <= ? ORDER BY data_ref ASC""", (dt_lim_str,))
             itens_work = c.fetchall()
             if not itens_work:
-                st.write("✨ Nenhuma atividade pendente no período.")
+                st.write("✨ Nenhuma atividade de trabalho pendente.")
             else:
                 cols = st.columns(3)
                 for idx, (tid, data, t, d) in enumerate(itens_work):
                     dt = datetime.strptime(data, "%Y-%m-%d").date()
                     dia_n = dias_semana[dt.weekday()]
                     
-                    # Lógica de Cores
-                    if dt < hoje_dt: cor, fundo = "#dc3545", "#fff5f5"      # Atrasado (Vermelho)
-                    elif dt == hoje_dt: cor, fundo = "#ffc107", "#fffdf5"   # Hoje (Amarelo)
-                    else: cor, fundo = "#004a99", "white"                   # Futuro (Azul)
+                    # Cores Inteligentes
+                    if dt < hoje_dt: cor, fundo = "#dc3545", "#fff5f5"      # Atrasado
+                    elif dt == hoje_dt: cor, fundo = "#ffc107", "#fffdf5"   # Hoje
+                    else: cor, fundo = "#004a99", "white"                   # Futuro
 
                     with cols[idx % 3]:
                         html_d = f'<div style="font-size:0.75rem; color:#555; margin-top:4px; font-style: italic;">{(d[:40] + "...") if len(d) > 40 else d}</div>' if d else ""
@@ -861,25 +859,32 @@ else:
                             else:
                                 st.button("ℹ️", key=f"no_dw_{tid}", disabled=True, use_container_width=True)
 
-        # --- ABA 3: VIDA PESSOAL (COM CORES E FILTRO) ---
+        # --- ABA 3: VIDA PESSOAL (COM FILTRO DENTRO DA ABA E CORES) ---
         with t_pessoal:
-            st.markdown("### 🏠 Agenda Pessoal")
+            col_titp, col_filp = st.columns([2, 1])
+            with col_titp: st.markdown("### 🏠 Agenda Pessoal")
+            with col_filp: 
+                f_p = st.selectbox("Período:", ["7 dias", "15 dias", "30 dias", "Tudo"], key="f_pess", label_visibility="collapsed")
+            
+            d_limp = {"7 dias": 7, "15 dias": 15, "30 dias": 30, "Tudo": 9999}.get(f_p, 7)
+            dt_limp_str = (hoje_dt + timedelta(days=d_limp)).strftime("%Y-%m-%d")
+
             c.execute("""SELECT id, data_ref, titulo, descricao FROM agenda_itens 
                          WHERE status = 'Pendente' AND criado_por = 'brayan_pessoal' 
-                         AND data_ref <= ? ORDER BY data_ref ASC""", (data_limite_filtro,))
+                         AND data_ref <= ? ORDER BY data_ref ASC""", (dt_limp_str,))
             itens_pess = c.fetchall()
             if not itens_pess:
-                st.info("✨ Tudo organizado na vida pessoal por enquanto.")
+                st.info("✨ Vida pessoal organizada no período.")
             else:
                 cols_p = st.columns(3)
                 for idx, (tid, data, t, d) in enumerate(itens_pess):
                     dt_p = datetime.strptime(data, "%Y-%m-%d").date()
                     dia_p = dias_semana[dt_p.weekday()]
 
-                    # Lógica de Cores
-                    if dt_p < hoje_dt: cor_p, fundo_p = "#dc3545", "#fff5f5"    # Atrasado
-                    elif dt_p == hoje_dt: cor_p, fundo_p = "#ffc107", "#fffdf5" # Hoje
-                    else: cor_p, fundo_p = "#6f42c1", "#f9f5ff"                # Futuro (Roxo)
+                    # Cores Inteligentes Pessoal
+                    if dt_p < hoje_dt: cor_p, fundo_p = "#dc3545", "#fff5f5"
+                    elif dt_p == hoje_dt: cor_p, fundo_p = "#ffc107", "#fffdf5"
+                    else: cor_p, fundo_p = "#6f42c1", "#f9f5ff"
 
                     with cols_p[idx % 3]:
                         html_dp = f'<div style="font-size:0.75rem; color:#555; margin-top:4px; font-style: italic;">{(d[:40] + "...") if len(d) > 40 else d}</div>' if d else ""
@@ -914,7 +919,7 @@ else:
                             else:
                                 st.button("ℹ️", key=f"no_dp_{tid}", disabled=True, use_container_width=True)
 
-        # --- ABA 4: NOVO (ESTILO BR) ---
+        # --- ABA 4: NOVO ---
         with t_add:
             st.markdown("### ➕ Nova Entrada")
             tipo = st.segmented_control("Onde cadastrar?", ["Trabalho", "Vida Pessoal"], default="Trabalho")
@@ -940,6 +945,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

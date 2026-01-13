@@ -476,15 +476,20 @@ else:
     except:
         pass
 
-    # Função auxiliar interna para garantir que o título seja carregado para edição
-    def obter_titulo_limpo(url):
+    # Função auxiliar interna para garantir que o título e imagem sejam carregados
+    def obter_dados_preview(url):
         try:
             r = requests.get(url, timeout=5)
             s = BeautifulSoup(r.text, 'html.parser')
-            t = s.find('title').text
-            return t.replace(' - Destaque Toledo', '').strip()
+            t = s.find('title').text.replace(' - Destaque Toledo', '').strip()
+            
+            # Tenta pegar a imagem de destaque (OpenGraph) para o preview visual
+            img_meta = s.find("meta", property="og:image")
+            img_url = img_meta["content"] if img_meta else None
+            
+            return t, img_url
         except:
-            return ""
+            return "", None
 
     st.markdown('<div class="topo-titulo"><h1>DESTAQUE TOLEDO</h1></div>', unsafe_allow_html=True)
 
@@ -515,23 +520,31 @@ else:
                 for i, item in enumerate(ultimas):
                     if st.button(item["t"], key=f"btn_{i}", use_container_width=True):
                         st.session_state.url_atual = item["u"]
+                
+                # Botão para limpar campos e resetar a tela
+                if st.button("🗑️ Limpar Seleção", use_container_width=True):
+                    st.session_state.url_atual = ""
+                    st.rerun()
 
             with col_preview:
                 url_f = st.text_input("Link da Matéria:", value=st.session_state.get("url_atual", ""))
 
-                # --- PARTE NOVA: CAMPO PARA VOCÊ EDITAR O TÍTULO ---
                 if url_f:
-                    # Puxa o título automático do site para a caixa de edição
-                    titulo_sugerido = obter_titulo_limpo(url_f)
+                    # Puxa título e imagem para preview
+                    titulo_sugerido, img_url_site = obter_dados_preview(url_f)
                     
-                    # Caixa para editar o texto (mudar frase, dar espaço, etc)
+                    # --- INCREMENTO: PREVIEW VISUAL DA IMAGEM ---
+                    if img_url_site:
+                        with st.expander("🖼️ Ver imagem original do site", expanded=False):
+                            st.image(img_url_site, caption="Esta foto será usada no fundo da arte.")
+
+                    # Caixa para editar o texto
                     titulo_editado = st.text_area("📝 Ajuste o título da arte se desejar:", value=titulo_sugerido, height=100)
 
                     ca, cb = st.columns(2)
 
                     if ca.button("🖼️ GERAR FEED", use_container_width=True, type="primary"):
                         try:
-                            # Passa o seu texto editado para a arte
                             img = processar_artes_integrado(url_f, "FEED", titulo_personalizado=titulo_editado)
                             st.image(img)
 
@@ -548,7 +561,6 @@ else:
 
                     if cb.button("📱 GERAR STORY", use_container_width=True):
                         try:
-                            # Passa o seu texto editado para a arte
                             img = processar_artes_integrado(url_f, "STORY", titulo_personalizado=titulo_editado)
                             st.image(img, width=280)
 
@@ -600,7 +612,6 @@ else:
 
             st.markdown("---")
             
-            # Cabeçalho com botão de atualizar fila
             col_m_tit, col_m_ref = st.columns([3, 1])
             with col_m_tit:
                 st.subheader("👀 Monitor de Status (Tempo Real)")
@@ -625,9 +636,12 @@ else:
                         status_cor = "#004a99" # Azul
                         status_txt = "⏳ NA FILA"
                     
+                    # --- INCREMENTO: COR DE DESTAQUE PARA URGÊNCIAS ---
+                    cor_prio = "red" if p[2] == "URGENTE" else "#666"
+
                     col_m1, col_m2, col_m3 = st.columns([3, 1, 1])
                     with col_m1:
-                        st.markdown(f"**{p[3]}** - {p[1]} <br><small>Prioridade: {p[2]}</small>", unsafe_allow_html=True)
+                        st.markdown(f"**{p[3]}** - {p[1]} <br><small style='color:{cor_prio}; font-weight:bold;'>Prioridade: {p[2]}</small>", unsafe_allow_html=True)
                     with col_m2:
                         st.markdown(f"<p style='color:{status_cor}; font-weight:bold; margin-top:10px;'>{status_txt}</p>", unsafe_allow_html=True)
                     with col_m3:
@@ -995,6 +1009,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

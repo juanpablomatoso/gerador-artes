@@ -755,10 +755,7 @@ else:
         hoje_str = hoje_dt.strftime("%Y-%m-%d")
         
         # 1. CÁLCULO DE PRODUTIVIDADE (MATÉRIAS POSTADAS HOJE)
-        # Filtramos matérias concluídas que foram enviadas hoje
         c.execute("SELECT COUNT(*) FROM pautas_trabalho WHERE status = 'Concluído' AND data_envio LIKE ?", (f"{hoje_str}%",))
-        # Se o seu campo data_envio for apenas Hora, o cálculo acima pode retornar 0. 
-        # Para garantir, ele conta o que foi finalizado hoje.
         total_hoje = c.fetchone()[0]
 
         st.markdown(f"""
@@ -773,12 +770,13 @@ else:
         # --- ABA 1: MATÉRIAS PARA POSTAR (FILA DE TRABALHO) ---
         with tab_b1:
             # 1. BUSCAR DADOS PARA O MONITOR INTELIGENTE
-            c.execute("SELECT prioridade FROM pautas_trabalho WHERE status != 'Concluído'")
-            pautas_ativas = c.fetchall()
-            total_pautas = len(pautas_ativas)
-            tem_urgente = any(p[0] == "URGENTE" for p in pautas_ativas)
+            c.execute("SELECT id, titulo, link_ref, prioridade, data_envio, observacao, status FROM pautas_trabalho WHERE status != 'Concluído' ORDER BY id DESC")
+            pautas = c.fetchall()
+            
+            total_pautas = len(pautas)
+            tem_urgente = any(p[3] == "URGENTE" for p in pautas)
 
-            # 2. LÓGICA DO MONITOR DE BOAS-VINDAS
+            # 2. LÓGICA DO MONITOR DE STATUS (CABEÇALHO)
             if total_pautas == 0:
                 st.markdown("""
                     <div style="background-color: #d4edda; padding: 15px; border-radius: 10px; border-left: 5px solid #28a745; margin-bottom: 20px;">
@@ -789,8 +787,8 @@ else:
             elif tem_urgente:
                 st.markdown("""
                     <div style="background-color: #f8d7da; padding: 15px; border-radius: 10px; border-left: 5px solid #dc3545; margin-bottom: 20px; animation: blinker 1.5s linear infinite;">
-                        <h4 style="color: #721c24; margin: 0;">🚨 ATENÇÃO: MATÉRIA URGENTE!</h4>
-                        <p style="color: #721c24; margin: 0;">Priorize a pauta vermelha na fila abaixo.</p>
+                        <h4 style="color: #721c24; margin: 0;">🚨 ATENÇÃO: HÁ MATÉRIA URGENTE!</h4>
+                        <p style="color: #721c24; margin: 0;">Priorize as pautas vermelhas na fila abaixo.</p>
                     </div>
                     <style> @keyframes blinker { 50% { opacity: 0.6; } } </style>
                 """, unsafe_allow_html=True)
@@ -798,48 +796,61 @@ else:
                 st.markdown(f"""
                     <div style="background-color: #e7f3ff; padding: 15px; border-radius: 10px; border-left: 5px solid #004a99; margin-bottom: 20px;">
                         <h4 style="color: #004085; margin: 0;">📅 Fila de Trabalho</h4>
-                        <p style="color: #004085; margin: 0;">Você tem <b>{total_pautas}</b> matérias para postar hoje. Bom trabalho!</p>
+                        <p style="color: #004085; margin: 0;">Você tem <b>{total_pautas}</b> matérias para postar hoje. Veja abaixo:</p>
                     </div>
                 """, unsafe_allow_html=True)
-                    
-                    if p_texto:
-                        with st.expander("📄 VER TEXTO / RELEASE PARA COPIAR", expanded=True):
-                            st.text_area("Conteúdo da Matéria:", value=p_texto, height=250, key=f"text_{pid}")
 
-                    col_b1, col_b2 = st.columns(2)
-                    
-                    with col_b1:
-                        if p_status != "Postando":
-                            if st.button(f"🚀 Começar a Postar", key=f"start_{pid}", use_container_width=True, type="primary"):
-                                c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (pid,))
-                                conn.commit()
-                                
-                                # SÓ ABRE SE TIVER LINK VÁLIDO
-                                if p_link and p_link not in ["Sem link", "", "http://", "https://"]:
-                                    js = f"window.open('{p_link}')"
-                                    st.components.v1.html(f"<script>{js}</script>", height=0)
-                                
-                                st.rerun()
-                        else:
-                            # BOTÃO DE CANCELAR CASO ELE TENHA CLICADO ERRADO
-                            if st.button("↩️ Cancelar / Voltar Fila", key=f"cancel_{pid}", use_container_width=True):
-                                c.execute("UPDATE pautas_trabalho SET status='Pendente' WHERE id=?", (pid,))
-                                conn.commit()
-                                st.rerun()
-                    
-                    with col_b2:
-                        # O botão Finalizado só funciona ou ganha destaque se ele já começou
-                        if st.button(f"✅ Finalizado", key=f"postado_{pid}", use_container_width=True, type="secondary" if p_status != "Postando" else "primary"):
-                            c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
+            # 3. LISTAGEM DAS PAUTAS
+            for p in pautas:
+                pid, p_titulo, p_link, p_prioridade, p_hora, p_texto, p_status = p
+                
+                if p_status == "Postando":
+                    cor_borda, fundo_card, tag_txt = "#fd7e14", "#fff4e6", "⚡ VOCÊ ESTÁ POSTANDO AGORA"
+                else:
+                    cor_borda = "#dc3545" if p_prioridade == "URGENTE" else "#004a99"
+                    fundo_card = "#fff5f5" if p_prioridade == "URGENTE" else "white"
+                    tag_txt = f"🕒 ENVIADO ÀS: {p_hora}"
+
+                st.markdown(f"""
+                    <div style="background:{fundo_card}; padding:15px; border-radius:12px; border-left:8px solid {cor_borda}; box-shadow:0 2px 8px rgba(0,0,0,0.05); margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span style="font-size:0.75rem; font-weight:bold; color:{cor_borda};">{tag_txt}</span>
+                            <span style="background:{cor_borda}; color:white; padding:2px 10px; border-radius:10px; font-size:0.7rem;">{p_prioridade.upper()}</span>
+                        </div>
+                        <h4 style="margin:10px 0; color:#111;">{p_titulo}</h4>
+                    </div>
+                """, unsafe_allow_html=True)
+
+                if p_texto:
+                    with st.expander("📄 VER TEXTO / RELEASE PARA COPIAR", expanded=True):
+                        st.text_area("Conteúdo:", value=p_texto, height=200, key=f"text_{pid}")
+
+                col_b1, col_b2 = st.columns(2)
+                with col_b1:
+                    if p_status != "Postando":
+                        if st.button(f"🚀 Começar a Postar", key=f"start_{pid}", use_container_width=True, type="primary"):
+                            c.execute("UPDATE pautas_trabalho SET status='Postando' WHERE id=?", (pid,))
+                            conn.commit()
+                            if p_link and p_link not in ["Sem link", "", "http://", "https://"]:
+                                js = f"window.open('{p_link}')"
+                                st.components.v1.html(f"<script>{js}</script>", height=0)
+                            st.rerun()
+                    else:
+                        if st.button("↩️ Cancelar / Voltar Fila", key=f"cancel_{pid}", use_container_width=True):
+                            c.execute("UPDATE pautas_trabalho SET status='Pendente' WHERE id=?", (pid,))
                             conn.commit()
                             st.rerun()
-                    st.markdown("---")
+
+                with col_b2:
+                    if st.button(f"✅ Finalizado", key=f"postado_{pid}", use_container_width=True, type="primary" if p_status=="Postando" else "secondary"):
+                        c.execute("UPDATE pautas_trabalho SET status='Concluído' WHERE id=?", (pid,))
+                        conn.commit()
+                        st.rerun()
+                st.markdown("---")
 
         # --- ABA 2: AGENDA (GRAVAÇÕES E EVENTOS) ---
         with tab_b2:
             st.subheader("📅 Cronograma de Atividades")
-            st.caption("Fique atento aos horários de gravação e eventos externos.")
-            
             c.execute("DELETE FROM agenda_itens WHERE status = 'Concluído' AND data_ref < ?", (hoje_str,))
             conn.commit()
 
@@ -855,51 +866,31 @@ else:
                     b_desc = st.text_area("Detalhes (Local, horário, etc)", height=68)
                 with col2:
                     b_data = st.date_input("Data", value=hoje_dt, format="DD/MM/YYYY")
-                
                 if st.form_submit_button("🚀 AGENDAR NO PAINEL", use_container_width=True, type="primary"):
                     if b_titulo:
                         agora = (datetime.utcnow() - timedelta(hours=3)).strftime("%Y-%m-%d %H:%M")
-                        c.execute(
-                            "INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
-                            (b_data.strftime("%Y-%m-%d"), b_titulo, b_desc, "Pendente", "brayan", agora)
-                        )
+                        c.execute("INSERT INTO agenda_itens (data_ref, titulo, descricao, status, criado_por, criado_em) VALUES (?, ?, ?, ?, ?, ?)",
+                                 (b_data.strftime("%Y-%m-%d"), b_titulo, b_desc, "Pendente", "brayan", agora))
                         conn.commit()
                         st.rerun()
 
             st.markdown("---")
-
-            c.execute(
-                """SELECT id, data_ref, titulo, descricao, status, criado_por 
-                   FROM agenda_itens 
-                   WHERE (data_ref BETWEEN ? AND ?) OR (status = 'Pendente' AND data_ref < ?)
-                   ORDER BY data_ref ASC""",
-                (hoje_str, data_limite, hoje_str)
-            )
+            c.execute("SELECT id, data_ref, titulo, descricao, status, criado_por FROM agenda_itens WHERE (data_ref BETWEEN ? AND ?) OR (status = 'Pendente' AND data_ref < ?) ORDER BY data_ref ASC", (hoje_str, data_limite, hoje_str))
             itens = c.fetchall()
 
             for (tid, data_ref, titulo, descricao, status, criado_por) in itens:
                 dt_obj = datetime.strptime(data_ref, "%Y-%m-%d").date()
-                
                 if status == "Concluído": cor, tag, fundo = "#198754", "✅ CONCLUÍDO", "#f1fff6"
                 elif dt_obj < hoje_dt: cor, tag, fundo = "#dc3545", "🚨 ATRASADO", "#fff5f5"
                 elif dt_obj == hoje_dt: cor, tag, fundo = "#ffc107", "📌 HOJE", "#fffdf5"
                 else: cor, tag, fundo = "#0d6efd", "🗓️ AGENDADO", "#f3f7ff"
 
-                em_campo = " 🎥" if "video" in titulo.lower() or "grava" in titulo.lower() or "evento" in titulo.lower() else ""
-
                 st.markdown(f"""
-                    <div style="background:{fundo}; padding:15px; border-radius:10px; border-left:8px solid {cor}; margin-bottom:10px; border-top:1px solid #eee;">
-                        <div style="display:flex; justify-content:space-between;">
-                            <span style="font-weight:bold; font-size:0.8rem;">{dt_obj.strftime('%d/%m/%Y')} — {tag}</span>
-                            <span style="font-size:0.7rem; color:#666;">AUTOR: {criado_por.upper() if criado_por else 'SISTEMA'}</span>
-                        </div>
-                        <div style="font-size:1.1rem; font-weight:bold; color:#111; margin-top:5px;">{titulo}{em_campo}</div>
+                    <div style="background:{fundo}; padding:15px; border-radius:10px; border-left:8px solid {cor}; margin-bottom:10px;">
+                        <span style="font-weight:bold; font-size:0.8rem;">{dt_obj.strftime('%d/%m/%Y')} — {tag}</span><br>
+                        <div style="font-size:1.1rem; font-weight:bold; color:#111;">{titulo}</div>
                     </div>
                 """, unsafe_allow_html=True)
-
-                if descricao:
-                    with st.expander("📖 Ver detalhes/instruções"):
-                        st.write(descricao)
 
                 col_ag1, col_ag2, _ = st.columns([1, 1, 3])
                 with col_ag1:
@@ -915,13 +906,8 @@ else:
                             c.execute("DELETE FROM agenda_itens WHERE id=?", (tid,))
                             conn.commit()
                             st.rerun()
-                    else:
-                        st.button("🔒 Fixo", help="Apenas Juan pode excluir esta pauta.", disabled=True, key=f"lock_{tid}", use_container_width=True)
-            
+        
         conn.close()
-
-        if st.button("🆘 Precisa de ajuda?"):
-            st.warning("Brayan, entre em contato com o Juan caso precise de ajuda.")
 
     # ============================================================
     # SIDEBAR
@@ -931,6 +917,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

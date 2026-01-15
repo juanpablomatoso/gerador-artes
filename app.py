@@ -19,11 +19,34 @@ import re
 st.set_page_config(page_title="Painel Destaque Toledo", layout="wide", page_icon="🎨")
 
 # ============================================================
-# 2) ESTILIZAÇÃO CSS PROFISSIONAL
+# 2) ESTILIZAÇÃO CSS PROFISSIONAL (OTIMIZADA PARA ROLAGEM)
 # ============================================================
 st.markdown(
     """
     <style>
+    /* Forçar rolagem em todos os dispositivos */
+    html, body, [data-testid="stAppViewContainer"] {
+        overflow-y: auto !important;
+    }
+    
+    /* Tornar a barra de rolagem bem visível para o Brayan */
+    ::-webkit-scrollbar {
+        width: 14px; /* Barra mais larga para fácil clique */
+        height: 14px;
+    }
+    ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: #004a99; /* Cor principal do portal */
+        border-radius: 10px;
+        border: 2px solid #f1f1f1;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+        background: #003366;
+    }
+
     .stApp { background-color: #f8f9fa; }
     .topo-titulo {
         text-align: center; padding: 30px;
@@ -31,6 +54,7 @@ st.markdown(
         color: white; border-radius: 15px; margin-bottom: 25px;
         box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
+    /* ... (restante dos seus estilos de card-pauta, tag-status etc permanecem iguais) ... */
     .card-pauta {
         background-color: white; padding: 20px; border-radius: 12px;
         border-left: 6px solid #004a99; margin-bottom: 15px;
@@ -995,6 +1019,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 

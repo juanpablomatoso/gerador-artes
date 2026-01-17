@@ -146,62 +146,75 @@ AUTH_HASHES = load_auth_hashes()
 AUTH_CONFIG_OK = bool(AUTH_HASHES.get("juan")) and bool(AUTH_HASHES.get("brayan"))
 
 # ============================================================
-# 5) BANCO DE DADOS (ROBUSTO)
+# 5) BANCO DE DADOS (AJUSTADO PARA PERSISTÊNCIA TOTAL)
 # ============================================================
 def get_conn():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    # Aumentado o timeout para 10 segundos para evitar travamentos em escritas rápidas
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False, timeout=10)
+    
+    # Ativa o modo WAL para permitir leitura e escrita simultâneas
     conn.execute("PRAGMA journal_mode=WAL;")
-    conn.execute("PRAGMA synchronous=NORMAL;")
+    
+    # Mudado de NORMAL para FULL: Garante que o sistema espere o dado gravar no disco físico
+    conn.execute("PRAGMA synchronous=FULL;")
+    
     conn.execute("PRAGMA busy_timeout=5000;")
     return conn
 
 def init_db():
     conn = get_conn()
-    c = conn.cursor()
+    try:
+        c = conn.cursor()
 
-    # tabela antiga (mantida)
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS agenda (
-            dia TEXT PRIMARY KEY,
-            pauta TEXT
+        # Tabela antiga (mantida por compatibilidade)
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agenda (
+                dia TEXT PRIMARY KEY,
+                pauta TEXT
+            )
+            """
         )
-        """
-    )
 
-    # pautas do Brayan
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS pautas_trabalho (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            titulo TEXT,
-            link_ref TEXT,
-            status TEXT,
-            data_envio TEXT,
-            prioridade TEXT,
-            observacao TEXT
+        # Pautas do Brayan
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS pautas_trabalho (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                titulo TEXT,
+                link_ref TEXT,
+                status TEXT,
+                data_envio TEXT,
+                prioridade TEXT,
+                observacao TEXT
+            )
+            """
         )
-        """
-    )
 
-    # agenda nova
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS agenda_itens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            data_ref TEXT NOT NULL,
-            titulo TEXT NOT NULL,
-            descricao TEXT,
-            status TEXT NOT NULL DEFAULT 'Pendente',
-            criado_por TEXT,
-            criado_em TEXT
+        # Agenda unificada
+        c.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agenda_itens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data_ref TEXT NOT NULL,
+                titulo TEXT NOT NULL,
+                descricao TEXT,
+                status TEXT NOT NULL DEFAULT 'Pendente',
+                criado_por TEXT,
+                criado_em TEXT
+            )
+            """
         )
-        """
-    )
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+        # COMANDO CRÍTICO: Força o SQLite a transferir tudo do log temporário para o arquivo .db real
+        conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+    except Exception as e:
+        print(f"Erro ao inicializar banco: {e}")
+    finally:
+        conn.close()
 
+# Inicializa o banco garantindo a estrutura
 init_db()
 
 # ============================================================
@@ -1019,6 +1032,7 @@ else:
         if st.button("🚪 Sair do Sistema", use_container_width=True):
             st.session_state.autenticado = False
             st.rerun()
+
 
 
 
